@@ -1,0 +1,20 @@
+{
+  "manifest_version": 2,
+  "name": "LLM Studio for Zotero",
+  "version": "0.1.0",
+  "description": "Connect Zotero to LLM Studio for AI-powered research assistance",
+  "homepage_url": "https://github.com/your-org/aiops-llmstudio-zotero-plugin",
+  "author": "AIOps Team",
+  "icons": {
+    "48": "content/icons/icon-48.png",
+    "96": "content/icons/icon-96.png"
+  },
+  "applications": {
+    "zotero": {
+      "id": "llmstudio-zotero@aiops.dev",
+      "update_url": "https://github.com/your-org/aiops-llmstudio-zotero-plugin/releases/latest/download/update.json",
+      "strict_min_version": "6.999",
+      "strict_max_version": "8.*"
+    }
+  }
+}

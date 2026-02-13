@@ -1,0 +1,141 @@
+<linkset>
+  <html:link rel="localization" href="llmstudio-plugin-preferences.ftl" />
+</linkset>
+
+<prefpane id="llmstudio-plugin-preferences" onload="Zotero.LLMStudio.hooks.onPrefsEvent?.('load', { window });">
+  <preferences>
+    <!-- Server Settings -->
+    <preference id="extensions.zotero.llmstudio-zotero.server.enabled"
+                name="extensions.zotero.llmstudio-zotero.server.enabled"
+                type="bool" />
+    <preference id="extensions.zotero.llmstudio-zotero.server.port"
+                name="extensions.zotero.llmstudio-zotero.server.port"
+                type="int" />
+    <preference id="extensions.zotero.llmstudio-zotero.server.host"
+                name="extensions.zotero.llmstudio-zotero.server.host"
+                type="string" />
+
+    <!-- LLM Studio Connection -->
+    <preference id="extensions.zotero.llmstudio-zotero.llmstudio.url"
+                name="extensions.zotero.llmstudio-zotero.llmstudio.url"
+                type="string" />
+    <preference id="extensions.zotero.llmstudio-zotero.llmstudio.model"
+                name="extensions.zotero.llmstudio-zotero.llmstudio.model"
+                type="string" />
+
+    <!-- Features -->
+    <preference id="extensions.zotero.llmstudio-zotero.features.autoSummarize"
+                name="extensions.zotero.llmstudio-zotero.features.autoSummarize"
+                type="bool" />
+    <preference id="extensions.zotero.llmstudio-zotero.features.maxTokens"
+                name="extensions.zotero.llmstudio-zotero.features.maxTokens"
+                type="int" />
+  </preferences>
+
+  <vbox flex="1" style="padding: 10px;">
+    <!-- Server Settings -->
+    <groupbox style="margin-bottom: 15px;">
+      <label><html:h2 data-l10n-id="llmstudio-pref-server-title"></html:h2></label>
+
+      <checkbox
+        id="llmstudio-pref-server-enabled"
+        preference="extensions.zotero.llmstudio-zotero.server.enabled"
+        data-l10n-id="llmstudio-pref-server-enable"
+      ></checkbox>
+
+      <hbox align="center" style="margin-top: 10px;">
+        <html:label
+          for="llmstudio-pref-server-port"
+          data-l10n-id="llmstudio-pref-server-port"
+          style="min-width: 80px;"
+        ></html:label>
+        <html:input
+          type="number"
+          id="llmstudio-pref-server-port"
+          preference="extensions.zotero.llmstudio-zotero.server.port"
+          min="1024"
+          max="65535"
+          style="max-width: 100px;"
+        ></html:input>
+      </hbox>
+    </groupbox>
+
+    <!-- LLM Studio Connection -->
+    <groupbox style="margin-bottom: 15px;">
+      <label><html:h2 data-l10n-id="llmstudio-pref-connection-title"></html:h2></label>
+
+      <hbox align="center" style="margin-bottom: 10px;">
+        <html:label
+          for="llmstudio-pref-llmstudio-url"
+          data-l10n-id="llmstudio-pref-llmstudio-url"
+          style="min-width: 100px;"
+        ></html:label>
+        <html:input
+          type="text"
+          id="llmstudio-pref-llmstudio-url"
+          preference="extensions.zotero.llmstudio-zotero.llmstudio.url"
+          placeholder="http://localhost:1234"
+          style="flex: 1; max-width: 300px;"
+        ></html:input>
+      </hbox>
+
+      <hbox align="center" style="margin-bottom: 10px;">
+        <html:label
+          for="llmstudio-pref-llmstudio-model"
+          data-l10n-id="llmstudio-pref-llmstudio-model"
+          style="min-width: 100px;"
+        ></html:label>
+        <html:input
+          type="text"
+          id="llmstudio-pref-llmstudio-model"
+          preference="extensions.zotero.llmstudio-zotero.llmstudio.model"
+          placeholder="Leave empty for default"
+          style="flex: 1; max-width: 300px;"
+        ></html:input>
+      </hbox>
+
+      <hbox style="margin-top: 10px;">
+        <button
+          id="llmstudio-test-connection-button"
+          data-l10n-id="llmstudio-pref-test-connection"
+        ></button>
+        <html:span id="connection-test-result" style="line-height: 28px; margin-left: 10px;"></html:span>
+      </hbox>
+    </groupbox>
+
+    <!-- Feature Settings -->
+    <groupbox style="margin-bottom: 15px;">
+      <label><html:h2 data-l10n-id="llmstudio-pref-features-title"></html:h2></label>
+
+      <checkbox
+        id="llmstudio-pref-auto-summarize"
+        preference="extensions.zotero.llmstudio-zotero.features.autoSummarize"
+        data-l10n-id="llmstudio-pref-auto-summarize"
+      ></checkbox>
+
+      <hbox align="center" style="margin-top: 10px;">
+        <html:label
+          for="llmstudio-pref-max-tokens"
+          data-l10n-id="llmstudio-pref-max-tokens"
+          style="min-width: 120px;"
+        ></html:label>
+        <html:input
+          type="number"
+          id="llmstudio-pref-max-tokens"
+          preference="extensions.zotero.llmstudio-zotero.features.maxTokens"
+          min="256"
+          max="32768"
+          style="max-width: 100px;"
+        ></html:input>
+      </hbox>
+    </groupbox>
+
+    <!-- Help -->
+    <vbox>
+      <html:label
+        data-l10n-id="llmstudio-pref-help"
+        data-l10n-args='{"version": "0.1.0"}'
+      ></html:label>
+    </vbox>
+  </vbox>
+</prefpane>
