@@ -3,11 +3,11 @@
  */
 
 /* Item Pane Section */
-.llmstudio-pane-body {
+.lmstudio-pane-body {
 	padding: 8px;
 }
 
-.llmstudio-summary {
+.lmstudio-summary {
 	min-height: 100px;
 	padding: 8px;
 	background: var(--material-background20, #f5f5f5);
@@ -15,17 +15,17 @@
 	margin-bottom: 8px;
 }
 
-.llmstudio-summary p {
+.lmstudio-summary p {
 	margin: 0;
 	color: var(--fill-secondary, #666);
 }
 
-.llmstudio-actions {
+.lmstudio-actions {
 	display: flex;
 	gap: 8px;
 }
 
-.llmstudio-actions button {
+.lmstudio-actions button {
 	padding: 6px 12px;
 	border: 1px solid var(--material-border, #ccc);
 	border-radius: 4px;
@@ -33,37 +33,37 @@
 	cursor: pointer;
 }
 
-.llmstudio-actions button:hover {
+.lmstudio-actions button:hover {
 	background: var(--material-button-hover, #e8e8e8);
 }
 
-.llmstudio-actions button:active {
+.lmstudio-actions button:active {
 	background: var(--material-button-active, #d8d8d8);
 }
 
 /* Status indicator */
-.llmstudio-status {
+.lmstudio-status {
 	display: inline-flex;
 	align-items: center;
 	gap: 4px;
 	font-size: 11px;
 }
 
-.llmstudio-status-dot {
+.lmstudio-status-dot {
 	width: 8px;
 	height: 8px;
 	border-radius: 50%;
 }
 
-.llmstudio-status-dot.connected {
+.lmstudio-status-dot.connected {
 	background: #4caf50;
 }
 
-.llmstudio-status-dot.disconnected {
+.lmstudio-status-dot.disconnected {
 	background: #f44336;
 }
 
-.llmstudio-status-dot.connecting {
+.lmstudio-status-dot.connecting {
 	background: #ff9800;
 	animation: pulse 1s infinite;
 }
@@ -75,11 +75,11 @@
 }
 
 /* Menu item icons */
-menuitem[id^="llmstudio-"] {
-	list-style-image: url("chrome://llmstudio-zotero/content/icons/icon-16.svg");
+menuitem[id^="lmstudio-"] {
+	list-style-image: url("chrome://lmstudio-zotero/content/icons/icon-16.svg");
 }
 
 /* Context menu */
-#zotero-itemmenu menuitem[id^="llmstudio-"] {
-	list-style-image: url("chrome://llmstudio-zotero/content/icons/icon-16.svg");
+#zotero-itemmenu menuitem[id^="lmstudio-"] {
+	list-style-image: url("chrome://lmstudio-zotero/content/icons/icon-16.svg");
 }

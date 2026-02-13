@@ -1,8 +1,8 @@
 {
-  "name": "aiops-llmstudio-zotero-plugin",
+  "name": "aiops-lmstudio-zotero-plugin",
   "version": "0.1.0",
-  "description": "Connect Zotero to LLM Studio for AI-powered research assistance",
-  "main": "src/content/scripts/llmstudio-plugin.js",
+  "description": "Connect Zotero to LM Studio for AI-powered research assistance",
+  "main": "src/content/scripts/lmstudio-plugin.js",
   "scripts": {
     "build": "bash build.sh",
     "watch": "echo 'Watch mode - rebuild on file changes (TODO)'",
@@ -10,12 +10,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/aiops-llmstudio-zotero-plugin.git"
+    "url": "https://github.com/your-org/aiops-lmstudio-zotero-plugin.git"
   },
   "keywords": [
     "zotero",
+    "lm-studio",
     "llm",
-    "llm-studio",
     "ai",
     "research"
   ],

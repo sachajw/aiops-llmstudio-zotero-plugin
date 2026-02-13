@@ -8,18 +8,21 @@
 
 // Attach to window load event
 window.addEventListener("load", () => {
-	Zotero.debug("[LLMStudio] Preferences window loaded");
+	Zotero.debug("[LMStudio] Preferences window loaded");
 
 	// Initialize UI
 	initConnectionTest();
 	initProviderPresets();
+	initAPIKeyButtons();
+	initSecurityToggles();
+	initAPIVersionToggles();
 });
 
 /**
  * Initialize connection test button
  */
 function initConnectionTest() {
-	let testBtn = document.getElementById("llmstudio-test-connection-button");
+	let testBtn = document.getElementById("lmstudio-test-connection-button");
 	let resultSpan = document.getElementById("connection-test-result");
 
 	if (!testBtn) return;
@@ -31,8 +34,8 @@ function initConnectionTest() {
 		}
 
 		try {
-			let url = document.getElementById("llmstudio-pref-llmstudio-url").value;
-			let response = await fetch(`${url}/v1/models`, {
+			let url = document.getElementById("lmstudio-pref-lmstudio-url").value;
+			let response = await Zotero.SecurityUtils.secureFetch(`${url}/v1/models`, {
 				method: "GET",
 				headers: { "Content-Type": "application/json" },
 			});
@@ -62,16 +65,74 @@ function initConnectionTest() {
 }
 
 /**
+ * Initialize API key buttons
+ */
+function initAPIKeyButtons() {
+	let copyBtn = document.getElementById("lmstudio-copy-api-key-button");
+	let regenerateBtn = document.getElementById("lmstudio-regenerate-api-key-button");
+	let apiKeyInput = document.getElementById("lmstudio-pref-api-key");
+
+	if (copyBtn && apiKeyInput) {
+		copyBtn.addEventListener("command", () => {
+			let apiKey = apiKeyInput.value;
+			if (apiKey) {
+				// Copy to clipboard
+				Components.classes["@mozilla.org/widget/clipboardhelper;1"]
+					.getService(Components.interfaces.nsIClipboardHelper)
+					.copyString(apiKey);
+
+				// Show feedback
+				let originalLabel = copyBtn.label || copyBtn.textContent;
+				copyBtn.label = "Copied!";
+				setTimeout(() => {
+					copyBtn.label = originalLabel;
+				}, 2000);
+			}
+		});
+	}
+
+	if (regenerateBtn && apiKeyInput) {
+		regenerateBtn.addEventListener("command", () => {
+			// Confirm regeneration
+			let promptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
+				.getService(Components.interfaces.nsIPromptService);
+
+			let confirmed = promptService.confirm(
+				window,
+				"Regenerate API Key",
+				"This will invalidate the current API key. Any external applications using the old key will need to be updated. Continue?"
+			);
+
+			if (confirmed) {
+				// Generate new API key
+				let newKey = Zotero.SecurityUtils.generateAPIKey();
+				Zotero.Prefs.set("extensions.zotero.lmstudio-zotero.server.apiKey", newKey, true);
+
+				// Update UI
+				apiKeyInput.value = newKey;
+
+				// Show notification
+				promptService.alert(
+					window,
+					"API Key Regenerated",
+					"New API key has been generated. Make sure to update any external applications."
+				);
+			}
+		});
+	}
+}
+
+/**
  * Initialize provider presets
  */
 function initProviderPresets() {
-	let providerSelect = document.getElementById("llmstudio-pref-provider");
-	let urlInput = document.getElementById("llmstudio-pref-llmstudio-url");
+	let providerSelect = document.getElementById("lmstudio-pref-provider");
+	let urlInput = document.getElementById("lmstudio-pref-lmstudio-url");
 
 	if (!providerSelect || !urlInput) return;
 
 	let presets = {
-		"llmstudio": "http://localhost:1234",
+		"lmstudio": "http://localhost:1234",
 		"ollama": "http://localhost:11434/v1",
 		"openai": "https://api.openai.com/v1",
 		"anthropic": "https://api.anthropic.com/v1",
@@ -92,7 +153,7 @@ function initProviderPresets() {
  * Populate model dropdown from API response
  */
 function populateModelDropdown(models) {
-	let modelInput = document.getElementById("llmstudio-pref-llmstudio-model");
+	let modelInput = document.getElementById("lmstudio-pref-lmstudio-model");
 	if (!modelInput || !models) return;
 
 	// If it's a select element, populate options
@@ -108,7 +169,7 @@ function populateModelDropdown(models) {
 	// If it's an input, just set a datalist or show first model
 	else if (models.length > 0) {
 		// Could create a datalist here
-		Zotero.debug(`[LLMStudio] Available models: ${models.map((m) => m.id).join(", ")}`);
+		Zotero.debug(`[LMStudio] Available models: ${models.map((m) => m.id).join(", ")}`);
 	}
 }
 
@@ -118,16 +179,16 @@ function populateModelDropdown(models) {
 async function exportPreferences() {
 	let prefs = {
 		server: {
-			enabled: Zotero.Prefs.get("extensions.zotero.llmstudio-zotero.server.enabled"),
-			port: Zotero.Prefs.get("extensions.zotero.llmstudio-zotero.server.port"),
+			enabled: Zotero.Prefs.get("extensions.zotero.lmstudio-zotero.server.enabled"),
+			port: Zotero.Prefs.get("extensions.zotero.lmstudio-zotero.server.port"),
 		},
-		llmstudio: {
-			url: Zotero.Prefs.get("extensions.zotero.llmstudio-zotero.llmstudio.url"),
-			model: Zotero.Prefs.get("extensions.zotero.llmstudio-zotero.llmstudio.model"),
+		lmstudio: {
+			url: Zotero.Prefs.get("extensions.zotero.lmstudio-zotero.lmstudio.url"),
+			model: Zotero.Prefs.get("extensions.zotero.lmstudio-zotero.lmstudio.model"),
 		},
 		features: {
-			autoSummarize: Zotero.Prefs.get("extensions.zotero.llmstudio-zotero.features.autoSummarize"),
-			maxTokens: Zotero.Prefs.get("extensions.zotero.llmstudio-zotero.features.maxTokens"),
+			autoSummarize: Zotero.Prefs.get("extensions.zotero.lmstudio-zotero.features.autoSummarize"),
+			maxTokens: Zotero.Prefs.get("extensions.zotero.lmstudio-zotero.features.maxTokens"),
 		},
 	};
 
@@ -138,7 +199,7 @@ async function exportPreferences() {
 	fp.init(window, "Export Preferences", fp.modeSave);
 	fp.appendFilter("JSON Files", "*.json");
 	fp.defaultExtension = "json";
-	fp.defaultString = "llmstudio-preferences.json";
+	fp.defaultString = "lmstudio-preferences.json";
 
 	let result = await new Promise((resolve) => {
 		fp.open(resolve);
@@ -147,7 +208,7 @@ async function exportPreferences() {
 	if (result === fp.returnOK || result === fp.returnReplace) {
 		let file = fp.file;
 		await IOUtils.writeUTF8(file.path, json);
-		Zotero.debug(`[LLMStudio] Preferences exported to ${file.path}`);
+		Zotero.debug(`[LMStudio] Preferences exported to ${file.path}`);
 	}
 }
 
@@ -171,32 +232,86 @@ async function importPreferences() {
 		// Apply preferences
 		if (prefs.server) {
 			if (prefs.server.enabled !== undefined) {
-				Zotero.Prefs.set("extensions.zotero.llmstudio-zotero.server.enabled", prefs.server.enabled);
+				Zotero.Prefs.set("extensions.zotero.lmstudio-zotero.server.enabled", prefs.server.enabled);
 			}
 			if (prefs.server.port !== undefined) {
-				Zotero.Prefs.set("extensions.zotero.llmstudio-zotero.server.port", prefs.server.port);
+				Zotero.Prefs.set("extensions.zotero.lmstudio-zotero.server.port", prefs.server.port);
 			}
 		}
-		if (prefs.llmstudio) {
-			if (prefs.llmstudio.url !== undefined) {
-				Zotero.Prefs.set("extensions.zotero.llmstudio-zotero.llmstudio.url", prefs.llmstudio.url);
+		if (prefs.lmstudio) {
+			if (prefs.lmstudio.url !== undefined) {
+				Zotero.Prefs.set("extensions.zotero.lmstudio-zotero.lmstudio.url", prefs.lmstudio.url);
 			}
-			if (prefs.llmstudio.model !== undefined) {
-				Zotero.Prefs.set("extensions.zotero.llmstudio-zotero.llmstudio.model", prefs.llmstudio.model);
+			if (prefs.lmstudio.model !== undefined) {
+				Zotero.Prefs.set("extensions.zotero.lmstudio-zotero.lmstudio.model", prefs.lmstudio.model);
 			}
 		}
 		if (prefs.features) {
 			if (prefs.features.autoSummarize !== undefined) {
-				Zotero.Prefs.set("extensions.zotero.llmstudio-zotero.features.autoSummarize", prefs.features.autoSummarize);
+				Zotero.Prefs.set("extensions.zotero.lmstudio-zotero.features.autoSummarize", prefs.features.autoSummarize);
 			}
 			if (prefs.features.maxTokens !== undefined) {
-				Zotero.Prefs.set("extensions.zotero.llmstudio-zotero.features.maxTokens", prefs.features.maxTokens);
+				Zotero.Prefs.set("extensions.zotero.lmstudio-zotero.features.maxTokens", prefs.features.maxTokens);
 			}
 		}
 
-		Zotero.debug(`[LLMStudio] Preferences imported from ${file.path}`);
+		Zotero.debug(`[LMStudio] Preferences imported from ${file.path}`);
 
 		// Refresh UI
 		window.location.reload();
+	}
+}
+
+/**
+ * Initialize security toggle controls
+ */
+function initSecurityToggles() {
+	let requireAuthCheckbox = document.getElementById("lmstudio-pref-require-auth");
+	let apiKeySection = document.getElementById("lmstudio-api-key-section");
+
+	if (requireAuthCheckbox && apiKeySection) {
+		// Update visibility based on current state
+		function updateAPIKeyVisibility() {
+			let requireAuth = requireAuthCheckbox.checked;
+			apiKeySection.style.display = requireAuth ? "" : "none";
+		}
+
+		// Set initial state
+		updateAPIKeyVisibility();
+
+		// Update when checkbox changes
+		requireAuthCheckbox.addEventListener("command", updateAPIKeyVisibility);
+	}
+}
+
+/**
+ * Initialize API version toggle controls
+ */
+function initAPIVersionToggles() {
+	let apiVersionSelect = document.getElementById("lmstudio-pref-api-version");
+	let v1FeaturesSection = document.getElementById("lmstudio-v1-features");
+	let customEndpointRow = document.getElementById("lmstudio-custom-endpoint-row");
+
+	if (apiVersionSelect) {
+		// Update visibility based on current state
+		function updateVersionBasedUI() {
+			let selectedVersion = apiVersionSelect.value;
+
+			// Show v1 features only for lmstudio-v1
+			if (v1FeaturesSection) {
+				v1FeaturesSection.style.display = selectedVersion === "lmstudio-v1" ? "" : "none";
+			}
+
+			// Show custom endpoint row only for custom
+			if (customEndpointRow) {
+				customEndpointRow.style.display = selectedVersion === "custom" ? "" : "none";
+			}
+		}
+
+		// Set initial state
+		updateVersionBasedUI();
+
+		// Update when selection changes
+		apiVersionSelect.addEventListener("command", updateVersionBasedUI);
 	}
 }

@@ -4,6 +4,7 @@ Connect Zotero to local LLMs (LM Studio, Ollama, etc.) for AI-powered research a
 
 ## Features
 
+- **Chat with Document**: Interactive chat interface for continuous conversation with your documents
 - **Send to LM Studio**: Send selected items to your local LLM for analysis
 - **Summarize**: Generate concise summaries saved as Zotero notes
 - **Ask Question**: Interactive Q&A about any research item
@@ -47,12 +48,14 @@ src/
 ├── prefs.js                # Default preferences
 └── content/
     ├── scripts/
-    │   ├── llmstudio-plugin.js   # Main plugin code + LM Studio API client
-    │   └── preferences.js        # Preferences UI logic
+    │   ├── lmstudio-plugin.js   # Main plugin code + LM Studio API client
+    │   ├── preferences.js       # Preferences UI logic
+    │   └── security-utils.js    # Security utilities
     ├── preferences.xhtml   # Preferences UI
+    ├── chat-panel.xhtml    # Chat interface window
     ├── styles/
-    │   ├── llmstudio.css         # Main styles
-    │   └── preferences.css       # Preferences styles
+    │   ├── lmstudio.css         # Main styles (includes chat styles)
+    │   └── preferences.css      # Preferences styles
     └── icons/
         ├── icon-16.svg
         ├── icon-20.svg
@@ -60,7 +63,7 @@ src/
         └── icon-96.png
 └── locale/
     └── en-US/
-        └── llmstudio-plugin-preferences.ftl
+        └── lmstudio-plugin-preferences.ftl
 ```
 
 ## Architecture
@@ -258,10 +261,14 @@ The plugin uses OpenAI-compatible APIs:
 
 ### From Zotero UI
 
-1. **Tools Menu**: Tools → Send to LM Studio
-2. **Context Menu**: Right-click items → Summarize with LM Studio
-3. **Item Pane**: Select item → AI Summary tab → Click button
-4. **Keyboard**: Cmd/Ctrl+Shift+L
+1. **Chat with Document**: Select an item → Item pane → Click "Chat with Document" button
+   - Opens a dedicated chat window for continuous conversation
+   - Chat history is saved as a note attached to the item
+   - Supports copy/clear chat functionality
+2. **Tools Menu**: Tools → Send to LM Studio
+3. **Context Menu**: Right-click items → Summarize with LM Studio
+4. **Item Pane**: Select item → AI Summary tab → Click button (Summarize, Ask Question, Extract Key Points)
+5. **Keyboard**: Cmd/Ctrl+Shift+L
 
 ### From JavaScript Console
 

@@ -1,0 +1,320 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet href="chrome://global/skin/" type="text/css"?>
+<?xml-stylesheet href="chrome://zotero/skin/" type="text/css"?>
+<?xml-stylesheet href="../styles/lmstudio.css" type="text/css"?>
+
+<!DOCTYPE window [
+  <!ENTITY % ZoteroDTD SYSTEM "chrome://zotero/locale/zotero.dtd">
+  %ZoteroDTD;
+]>
+
+<window
+  xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+  xmlns:html="http://www.w3.org/1999/xhtml"
+  id="lmstudio-chat-window"
+  title="Chat with Document"
+  persist="screenX screenY width height"
+  width="600"
+  height="500"
+  style="min-width: 400px; min-height: 300px;">
+
+  <linkset>
+    <html:link rel="localization" href="../locale/lmstudio-plugin-preferences.ftl" />
+  </linkset>
+
+  <script type="application/javascript">
+    <![CDATA[
+      // Chat functionality
+      const { Zotero } = ChromeUtils.importESModule("chrome://zotero/content/zotero.mjs");
+
+      let currentChat = null;
+      let currentItem = null;
+      let chatHistory = [];
+      let isStreaming = false;
+
+      // Initialize on load
+      window.addEventListener("load", () => {
+        initChat();
+      });
+
+      // Handle Enter key in input
+      window.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          let input = document.getElementById("chat-input");
+          if (document.activeElement === input && !isStreaming) {
+            e.preventDefault();
+            sendMessage();
+          }
+        }
+      });
+
+      function initChat() {
+        // Get item from window arguments
+        if (window.arguments && window.arguments[0]) {
+          currentItem = window.arguments[0].item;
+          updateItemInfo();
+          loadChatHistory();
+        }
+      }
+
+      function updateItemInfo() {
+        if (!currentItem) return;
+
+        let titleEl = document.getElementById("item-title");
+        let infoEl = document.getElementById("item-info");
+
+        let title = currentItem.getField("title") || "Untitled";
+        let creators = currentItem.getCreators().map(c => c.lastName).join(", ");
+        let year = currentItem.getField("date")?.substring(0, 4) || "";
+
+        titleEl.textContent = title;
+        infoEl.textContent = [creators, year].filter(Boolean).join(" - ");
+        document.title = `Chat: ${title.substring(0, 50)}${title.length > 50 ? "..." : ""}`;
+      }
+
+      function loadChatHistory() {
+        // Load chat history from item note (if exists)
+        chatHistory = [];
+        renderChatHistory();
+      }
+
+      function renderChatHistory() {
+        let container = document.getElementById("chat-messages");
+        container.innerHTML = "";
+
+        // Add welcome message
+        if (chatHistory.length === 0) {
+          addSystemMessage("Start a conversation about this document. Ask questions, request summaries, or explore the content.");
+        }
+
+        // Add all messages
+        for (let msg of chatHistory) {
+          appendMessage(msg.role, msg.content, false);
+        }
+
+        // Scroll to bottom
+        container.scrollTop = container.scrollHeight;
+      }
+
+      function addSystemMessage(content) {
+        let container = document.getElementById("chat-messages");
+        let div = document.createElementNS("http://www.w3.org/1999/xhtml", "div");
+        div.className = "chat-message system";
+        div.innerHTML = `<div class="message-content">${escapeHtml(content)}</div>`;
+        container.appendChild(div);
+      }
+
+      function appendMessage(role, content, scroll = true) {
+        let container = document.getElementById("chat-messages");
+
+        let div = document.createElementNS("http://www.w3.org/1999/xhtml", "div");
+        div.className = `chat-message ${role}`;
+
+        let label = role === "user" ? "You" : "LM Studio";
+        div.innerHTML = `
+          <div class="message-header">${escapeHtml(label)}</div>
+          <div class="message-content">${formatContent(content)}</div>
+        `;
+
+        container.appendChild(div);
+
+        if (scroll) {
+          container.scrollTop = container.scrollHeight;
+        }
+
+        return div;
+      }
+
+      function formatContent(content) {
+        // Convert markdown-like formatting
+        let html = escapeHtml(content);
+        // Bold
+        html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+        // Italic
+        html = html.replace(/\*(.*?)\*/g, "<em>$1</em>");
+        // Code blocks
+        html = html.replace(/```([\s\S]*?)```/g, "<pre><code>$1</code></pre>");
+        // Inline code
+        html = html.replace(/`(.*?)`/g, "<code>$1</code>");
+        // Line breaks
+        html = html.replace(/\n/g, "<br>");
+        return html;
+      }
+
+      function escapeHtml(text) {
+        let div = document.createElementNS("http://www.w3.org/1999/xhtml", "div");
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      async function sendMessage() {
+        let input = document.getElementById("chat-input");
+        let message = input.value.trim();
+
+        if (!message || isStreaming) return;
+
+        // Clear input
+        input.value = "";
+
+        // Add user message
+        chatHistory.push({ role: "user", content: message });
+        appendMessage("user", message);
+
+        // Show typing indicator
+        let typingDiv = appendMessage("assistant", "Thinking...");
+        typingDiv.className = "chat-message assistant typing";
+
+        isStreaming = true;
+        updateSendButton();
+
+        try {
+          // Build context from item
+          let context = buildItemContext();
+
+          // Build messages for API
+          let messages = [
+            { role: "system", content: `You are a helpful research assistant. The user is asking about the following document:\n\n${context}` },
+            ...chatHistory.map(m => ({ role: m.role, content: m.content }))
+          ];
+
+          // Call LM Studio
+          let response = await Zotero.LMStudio.chat({ messages });
+
+          // Remove typing indicator
+          typingDiv.remove();
+
+          // Add assistant response
+          chatHistory.push({ role: "assistant", content: response.content });
+          appendMessage("assistant", response.content);
+
+          // Save to item note
+          await saveChatToNote();
+
+        } catch (error) {
+          // Remove typing indicator
+          typingDiv.remove();
+
+          // Show error
+          addSystemMessage(`Error: ${error.message}`);
+          console.error("Chat error:", error);
+        }
+
+        isStreaming = false;
+        updateSendButton();
+      }
+
+      function buildItemContext() {
+        if (!currentItem) return "";
+
+        let parts = [];
+
+        // Title
+        let title = currentItem.getField("title");
+        if (title) parts.push(`Title: ${title}`);
+
+        // Authors
+        let creators = currentItem.getCreators();
+        if (creators.length > 0) {
+          parts.push(`Authors: ${creators.map(c => `${c.firstName} ${c.lastName}`).join(", ")}`);
+        }
+
+        // Abstract
+        let abstract = currentItem.getField("abstractNote");
+        if (abstract) parts.push(`Abstract: ${abstract}`);
+
+        // Publication info
+        let pub = currentItem.getField("publicationTitle");
+        let year = currentItem.getField("date")?.substring(0, 4);
+        if (pub || year) {
+          parts.push(`Published: ${[pub, year].filter(Boolean).join(", ")}`);
+        }
+
+        return parts.join("\n\n");
+      }
+
+      async function saveChatToNote() {
+        if (!currentItem || chatHistory.length === 0) return;
+
+        // Format chat as note content
+        let content = "# LM Studio Chat History\n\n";
+        for (let msg of chatHistory) {
+          let label = msg.role === "user" ? "**You**" : "**LM Studio**";
+          content += `${label}: ${msg.content}\n\n---\n\n`;
+        }
+
+        // Find or create chat note
+        let notes = currentItem.getNotes();
+        let chatNote = null;
+
+        for (let noteID of notes) {
+          let note = Zotero.Items.get(noteID);
+          if (note && note.getNoteTitle() === "LM Studio Chat") {
+            chatNote = note;
+            break;
+          }
+        }
+
+        if (!chatNote) {
+          chatNote = new Zotero.Item("note");
+          chatNote.parentID = currentItem.id;
+          chatNote.libraryID = currentItem.libraryID;
+        }
+
+        chatNote.setNote(`<div><h1>LM Studio Chat</h1>${content.replace(/\n/g, "<br>")}</div>`);
+        await chatNote.saveTx();
+      }
+
+      function updateSendButton() {
+        let btn = document.getElementById("send-button");
+        btn.disabled = isStreaming;
+        btn.textContent = isStreaming ? "Sending..." : "Send";
+      }
+
+      function clearChat() {
+        if (confirm("Clear all chat history?")) {
+          chatHistory = [];
+          renderChatHistory();
+        }
+      }
+
+      function copyChat() {
+        let text = chatHistory.map(m => {
+          let label = m.role === "user" ? "You" : "LM Studio";
+          return `${label}: ${m.content}`;
+        }).join("\n\n");
+
+        navigator.clipboard.writeText(text).then(() => {
+          addSystemMessage("Chat copied to clipboard!");
+        });
+      }
+    ]]>
+  </script>
+
+  <vbox flex="1" style="padding: 0;">
+    <!-- Header -->
+    <hbox class="chat-header" style="padding: 10px; border-bottom: 1px solid #ddd; background: #f5f5f5;">
+      <vbox flex="1">
+        <label id="item-title" style="font-weight: bold; font-size: 14px; margin: 0;">Loading...</label>
+        <label id="item-info" style="color: #666; font-size: 11px; margin: 0;"></label>
+      </vbox>
+      <button label="Copy" tooltiptext="Copy chat to clipboard" oncommand="copyChat();" />
+      <button label="Clear" tooltiptext="Clear chat history" oncommand="clearChat();" />
+    </hbox>
+
+    <!-- Messages -->
+    <vbox id="chat-messages" flex="1" style="overflow-y: auto; padding: 10px; background: #fff;" />
+
+    <!-- Input -->
+    <hbox class="chat-input-area" style="padding: 10px; border-top: 1px solid #ddd; background: #f9f9f9;">
+      <html:textarea
+        id="chat-input"
+        placeholder="Ask a question about this document..."
+        rows="3"
+        style="flex: 1; resize: none; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px;"
+      />
+      <vbox pack="end" style="margin-left: 8px;">
+        <button id="send-button" label="Send" oncommand="sendMessage();" default="true" style="height: 36px; padding: 0 16px;" />
+      </vbox>
+    </hbox>
+  </vbox>
+</window>

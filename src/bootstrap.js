@@ -16,79 +16,65 @@ const ADDON_UPGRADE = 7;
 const ADDON_DOWNGRADE = 8;
 
 var chromeHandle;
-var resourceHandle;
 
 /**
  * Called when the plugin is installed
  */
-function install(data, reason) {
-	Zotero.debug("[LLMStudio] Plugin installed");
-}
+function install(data, reason) {}
 
 /**
  * Called when the plugin starts up (app startup, enable, install, upgrade)
  */
 async function startup({ id, version, resourceURI, rootURI }, reason) {
-	Zotero.debug(`[LLMStudio] Starting up (reason: ${reason})`);
-
 	// Register chrome content using AddonManager API
-	let aomStartup = Components.classes[
+	var aomStartup = Components.classes[
 		"@mozilla.org/addons/addon-manager-startup;1"
 	].getService(Components.interfaces.amIAddonManagerStartup);
 
-	let manifestURI = Services.io.newURI(rootURI + "manifest.json");
+	var manifestURI = Services.io.newURI(rootURI + "manifest.json");
 
 	// Register content, locale, and resource
 	chromeHandle = aomStartup.registerChrome(manifestURI, [
-		["content", "llmstudio-zotero", rootURI + "content/"],
-		["locale", "llmstudio-zotero", "en-US", rootURI + "locale/en-US/"],
-		["resource", "llmstudio-zotero", rootURI + "resource/"],
+		["content", "lmstudio-zotero", rootURI + "content/"],
+		["locale", "lmstudio-zotero", "en-US", rootURI + "locale/en-US/"],
 	]);
 
 	// Create plugin context with exposed globals
-	let ctx = {
-		rootURI,
-		pluginID: id,
-		// Expose commonly needed globals
-		Zotero,
-		Services,
-		Components,
-		ChromeUtils,
-		IOUtils,
-		PathUtils,
-		_globalThis: null,
-	};
+	const ctx = { rootURI, pluginID: id };
 	ctx._globalThis = ctx;
 
-	// Load main plugin script
+	// Load security utilities first
 	Services.scriptloader.loadSubScript(
-		`${rootURI}content/scripts/llmstudio-plugin.js`,
+		`${rootURI}content/scripts/security-utils.js`,
 		ctx
 	);
 
-	// Wait for Zotero to be ready before initializing
-	await Zotero.initializationPromise;
+	// Load main plugin script
+	Services.scriptloader.loadSubScript(
+		`${rootURI}content/scripts/lmstudio-plugin.js`,
+		ctx
+	);
 
 	// Initialize plugin
-	await Zotero.LLMStudio.hooks.onStartup();
-
-	Zotero.debug("[LLMStudio] Plugin started successfully");
+	try {
+		await Zotero.LMStudio.hooks.onStartup();
+	} catch (e) {
+		Components.utils.reportError(`[LMStudio] Failed to initialize: ${e}\n${e.stack}`);
+	}
 }
 
 /**
  * Called when a main Zotero window loads
  */
 async function onMainWindowLoad({ window }, reason) {
-	Zotero.debug("[LLMStudio] Main window loading");
-	await Zotero.LLMStudio?.hooks.onMainWindowLoad(window);
+	await Zotero.LMStudio?.hooks.onMainWindowLoad(window);
 }
 
 /**
  * Called when a main Zotero window unloads
  */
 async function onMainWindowUnload({ window }, reason) {
-	Zotero.debug("[LLMStudio] Main window unloading");
-	await Zotero.LLMStudio?.hooks.onMainWindowUnload(window);
+	await Zotero.LMStudio?.hooks.onMainWindowUnload(window);
 }
 
 /**
@@ -100,11 +86,9 @@ async function shutdown({ id, version, resourceURI, rootURI }, reason) {
 		return;
 	}
 
-	Zotero.debug(`[LLMStudio] Shutting down (reason: ${reason})`);
-
 	// Let plugin clean up
-	if (Zotero.LLMStudio) {
-		await Zotero.LLMStudio.hooks.onShutdown();
+	if (Zotero.LMStudio) {
+		await Zotero.LMStudio.hooks.onShutdown();
 	}
 
 	// Deregister chrome
@@ -112,19 +96,15 @@ async function shutdown({ id, version, resourceURI, rootURI }, reason) {
 		chromeHandle.destruct();
 		chromeHandle = null;
 	}
-
-	Zotero.debug("[LLMStudio] Plugin shut down");
 }
 
 /**
  * Called when the plugin is uninstalled
  */
 async function uninstall(data, reason) {
-	Zotero.debug("[LLMStudio] Plugin uninstalled");
-
 	// Clean up preferences on uninstall
 	if (reason === ADDON_UNINSTALL) {
-		let branch = Services.prefs.getBranch("extensions.zotero.llmstudio-zotero.");
+		let branch = Services.prefs.getBranch("extensions.zotero.lmstudio-zotero.");
 		if (branch) {
 			branch.deleteBranch("");
 		}

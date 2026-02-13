@@ -12,20 +12,56 @@
 "use strict";
 
 // Plugin configuration
-const PLUGIN_ID = "llmstudio-zotero@aiops.dev";
-const PLUGIN_PREF_BRANCH = "extensions.zotero.llmstudio-zotero.";
+const PLUGIN_ID = "lmstudio-zotero@aiops.dev";
+const PLUGIN_PREF_BRANCH = "extensions.zotero.lmstudio-zotero.";
 
 // LM Studio default ports
 const LMSTUDIO_PORTS = [1234, 8080, 3000];
 const LMSTUDIO_GREETING_PATH = "/lmstudio-greeting";
+
+// API endpoint paths by version
+const API_PATHS = {
+	"openai": {
+		models: "/v1/models",
+		chat: "/v1/chat/completions",
+		completions: "/v1/completions",
+		embeddings: "/v1/embeddings"
+	},
+	"lmstudio-v1": {
+		models: "/api/v1/models",
+		chat: "/api/v1/chat",
+		load: "/api/v1/models/load",
+		unload: "/api/v1/models/unload",
+		download: "/api/v1/models/download",
+		downloadStatus: "/api/v1/models/download/status"
+	},
+	"anthropic": {
+		messages: "/v1/messages"
+	}
+};
 
 // Global reference stored in bootstrap context
 var rootURI;
 var pluginID;
 
 /**
+ * Get API endpoint path based on version preference
+ */
+function getAPIPath(endpoint) {
+	let apiVersion = Zotero?.LLMStudio?.prefs?.get("lmstudio.apiVersion", "openai");
+	let customEndpoint = Zotero?.LLMStudio?.prefs?.get("lmstudio.customEndpoint", "");
+
+	if (apiVersion === "custom" && customEndpoint) {
+		return customEndpoint;
+	}
+
+	let paths = API_PATHS[apiVersion];
+	return paths?.[endpoint] || API_PATHS.openai[endpoint];
+}
+
+/**
  * LM Studio API Client
- * Handles communication with LM Studio's OpenAI-compatible API
+ * Handles communication with LM Studio (supports multiple API versions)
  */
 const LMStudioAPI = {
 	/**
@@ -33,7 +69,7 @@ const LMStudioAPI = {
 	 */
 	async checkServer(baseUrl) {
 		try {
-			let response = await fetch(`${baseUrl}${LMSTUDIO_GREETING_PATH}`, {
+			let response = await Zotero.SecurityUtils.secureFetch(`${baseUrl}${LMSTUDIO_GREETING_PATH}`, {
 				method: "GET",
 				headers: { "Accept": "application/json" },
 			});
@@ -67,7 +103,7 @@ const LMStudioAPI = {
 	 */
 	async listModels(baseUrl) {
 		try {
-			let response = await fetch(`${baseUrl}/v1/models`, {
+			let response = await Zotero.SecurityUtils.secureFetch(`${baseUrl}/v1/models`, {
 				method: "GET",
 				headers: { "Accept": "application/json" },
 			});
@@ -80,7 +116,7 @@ const LMStudioAPI = {
 			return data.data || [];
 		}
 		catch (e) {
-			Zotero.debug(`[LLMStudio] Failed to list models: ${e}`);
+			Zotero.debug(`[LMStudio] Failed to list models: ${e}`);
 			return [];
 		}
 	},
@@ -100,22 +136,19 @@ const LMStudioAPI = {
 	 * Chat completion (non-streaming)
 	 */
 	async chat(baseUrl, model, messages, options = {}) {
-		let response = await fetch(`${baseUrl}/v1/chat/completions`, {
+		let apiVersion = Zotero?.LLMStudio?.prefs?.get("lmstudio.apiVersion", "openai");
+		let endpoint = getAPIPath("chat");
+
+		// Build request body based on API version
+		let requestBody = this.buildChatRequest(apiVersion, model, messages, options);
+
+		let response = await Zotero.SecurityUtils.secureFetch(`${baseUrl}${endpoint}`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
 				"Accept": "application/json",
 			},
-			body: JSON.stringify({
-				model: model || "",
-				messages: messages,
-				max_tokens: options.maxTokens || 4096,
-				temperature: options.temperature ?? 0.7,
-				top_p: options.topP,
-				top_k: options.topK,
-				stop: options.stopStrings,
-				stream: false,
-			}),
+			body: JSON.stringify(requestBody),
 		});
 
 		if (!response.ok) {
@@ -124,12 +157,103 @@ const LMStudioAPI = {
 		}
 
 		let data = await response.json();
-		return {
-			content: data.choices?.[0]?.message?.content || "",
-			role: data.choices?.[0]?.message?.role || "assistant",
-			usage: data.usage,
-			model: data.model,
-		};
+		return this.parseChatResponse(apiVersion, data);
+	},
+
+	/**
+	 * Build chat request based on API version
+	 */
+	buildChatRequest(apiVersion, model, messages, options) {
+		let prefs = Zotero?.LLMStudio?.prefs;
+		let request = {};
+
+		if (apiVersion === "lmstudio-v1") {
+			// LM Studio v1 API format
+			request = {
+				messages: messages,
+			};
+
+			// Add optional v1 features
+			if (prefs?.get("lmstudio.useStatefulChats")) {
+				request.chatId = options.chatId || null; // null = create new chat
+			}
+
+			if (prefs?.get("lmstudio.enableMCP")) {
+				request.mcpServers = options.mcpServers || [];
+			}
+
+			let contextLength = prefs?.get("lmstudio.contextLength", 0);
+			if (contextLength > 0) {
+				request.contextLength = contextLength;
+			}
+
+			// Standard parameters
+			if (model) request.model = model;
+			if (options.maxTokens) request.maxPredictedTokens = options.maxTokens;
+			if (options.temperature !== undefined) request.temperature = options.temperature;
+			if (options.topP) request.topP = options.topP;
+			if (options.stopStrings) request.stopStrings = options.stopStrings;
+
+		} else if (apiVersion === "anthropic") {
+			// Anthropic API format
+			request = {
+				model: model || "claude-3-sonnet-20240229",
+				messages: messages,
+				max_tokens: options.maxTokens || 4096,
+			};
+
+			if (options.temperature !== undefined) request.temperature = options.temperature;
+			if (options.topP) request.top_p = options.topP;
+			if (options.topK) request.top_k = options.topK;
+
+		} else {
+			// OpenAI format (default)
+			request = {
+				model: model || "",
+				messages: messages,
+				max_tokens: options.maxTokens || 4096,
+				temperature: options.temperature ?? 0.7,
+				stream: false,
+			};
+
+			if (options.topP) request.top_p = options.topP;
+			if (options.topK) request.top_k = options.topK;
+			if (options.stopStrings) request.stop = options.stopStrings;
+		}
+
+		return request;
+	},
+
+	/**
+	 * Parse chat response based on API version
+	 */
+	parseChatResponse(apiVersion, data) {
+		if (apiVersion === "lmstudio-v1") {
+			// LM Studio v1 response format
+			return {
+				content: data.content || "",
+				role: "assistant",
+				usage: data.stats,
+				model: data.model,
+				chatId: data.chatId, // For stateful chats
+			};
+		} else if (apiVersion === "anthropic") {
+			// Anthropic response format
+			return {
+				content: data.content?.[0]?.text || "",
+				role: data.role || "assistant",
+				usage: data.usage,
+				model: data.model,
+			};
+		} else {
+			// OpenAI format (default)
+			return {
+				content: data.choices?.[0]?.message?.content || "",
+				role: data.choices?.[0]?.message?.role || "assistant",
+				usage: data.usage,
+				model: data.model,
+			};
+		}
 	},
 
 	/**
@@ -137,31 +261,33 @@ const LMStudioAPI = {
 	 * Returns an async generator yielding chunks
 	 */
 	async *chatStream(baseUrl, model, messages, options = {}) {
-		let response = await fetch(`${baseUrl}/v1/chat/completions`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				"Accept": "text/event-stream",
-			},
-			body: JSON.stringify({
-				model: model || "",
-				messages: messages,
-				max_tokens: options.maxTokens || 4096,
-				temperature: options.temperature ?? 0.7,
-				stream: true,
-			}),
-		});
+		let reader = null;
+		let apiVersion = Zotero?.LLMStudio?.prefs?.get("lmstudio.apiVersion", "openai");
+		let endpoint = getAPIPath("chat");
 
-		if (!response.ok) {
-			let error = await response.text();
-			throw new Error(`HTTP ${response.status}: ${error}`);
-		}
-
-		let reader = response.body.getReader();
-		let decoder = new TextDecoder();
-		let buffer = "";
+		// Build request body
+		let requestBody = this.buildChatRequest(apiVersion, model, messages, options);
+		requestBody.stream = true;
 
 		try {
+			let response = await Zotero.SecurityUtils.secureFetch(`${baseUrl}${endpoint}`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					"Accept": "text/event-stream",
+				},
+				body: JSON.stringify(requestBody),
+			});
+
+			if (!response.ok) {
+				let error = await response.text();
+				throw new Error(`HTTP ${response.status}: ${error}`);
+			}
+
+			reader = response.body.getReader();
+			let decoder = new TextDecoder();
+			let buffer = "";
+
 			while (true) {
 				let { done, value } = await reader.read();
 				if (done) break;
@@ -197,7 +323,13 @@ const LMStudioAPI = {
 			}
 		}
 		finally {
-			reader.releaseLock();
+			if (reader) {
+				try {
+					reader.releaseLock();
+				} catch (e) {
+					// Reader already released
+				}
+			}
 		}
 	},
 
@@ -205,7 +337,7 @@ const LMStudioAPI = {
 	 * Text completion (non-chat)
 	 */
 	async complete(baseUrl, model, prompt, options = {}) {
-		let response = await fetch(`${baseUrl}/v1/completions`, {
+		let response = await Zotero.SecurityUtils.secureFetch(`${baseUrl}/v1/completions`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -237,7 +369,7 @@ const LMStudioAPI = {
 	 * Generate embeddings
 	 */
 	async embed(baseUrl, model, input) {
-		let response = await fetch(`${baseUrl}/v1/embeddings`, {
+		let response = await Zotero.SecurityUtils.secureFetch(`${baseUrl}/v1/embeddings`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -272,6 +404,37 @@ const LMStudioAPI = {
 };
 
 /**
+ * Chat class for managing conversation messages
+ */
+class Chat {
+	constructor() {
+		this.messages = [];
+	}
+
+	/**
+	 * Append a message to the chat
+	 * @param {string} role - Message role (user, assistant, system)
+	 * @param {string} content - Message content
+	 * @returns {Chat} This chat instance for chaining
+	 */
+	append(role, content) {
+		this.messages.push({
+			role: role,
+			content: content,
+		});
+		return this;
+	}
+
+	/**
+	 * Get all messages
+	 * @returns {Array} Array of message objects
+	 */
+	getMessages() {
+		return this.messages;
+	}
+}
+
+/**
  * Chat history manager (similar to @lmstudio/sdk Chat class)
  */
 const ChatManager = {
@@ -279,9 +442,7 @@ const ChatManager = {
 	 * Create empty chat history
 	 */
 	empty() {
-		return {
-			messages: [],
-		};
+		return new Chat();
 	},
 
 	/**
@@ -351,26 +512,10 @@ const ChatManager = {
 	},
 };
 
-// Extend chat objects with methods
-Object.defineProperty(Object.prototype, "append", {
-	value: function (role, content) {
-		if (!this.messages) this.messages = [];
-
-		this.messages.push({
-			role: role,
-			content: content,
-		});
-
-		return this;
-	},
-	configurable: true,
-	writable: true,
-});
-
 /**
  * Main plugin namespace
  */
-Zotero.LLMStudio = {
+Zotero.LMStudio = {
 	// State
 	initialized: false,
 	notifierID: null,
@@ -395,14 +540,11 @@ Zotero.LLMStudio = {
 		get serverEnabled() {
 			return this.get("server.enabled", true);
 		},
-		get serverPort() {
-			return this.get("server.port", 23121);
+		get lmstudioUrl() {
+			return this.get("lmstudio.url", "http://localhost:1234");
 		},
-		get llmstudioUrl() {
-			return this.get("llmstudio.url", "http://localhost:1234");
-		},
-		get llmstudioModel() {
-			return this.get("llmstudio.model", "");
+		get lmstudioModel() {
+			return this.get("lmstudio.model", "");
 		},
 		get maxTokens() {
 			return this.get("features.maxTokens", 4096);
@@ -423,80 +565,87 @@ Zotero.LLMStudio = {
 		 * Called on plugin startup
 		 */
 		async onStartup() {
-			if (this.initialized) return;
+			if (Zotero.LMStudio.initialized) return;
 
-			Zotero.debug("[LLMStudio] onStartup: initializing...");
+			Zotero.debug("[LMStudio] onStartup: initializing...");
 
 			// Register preference pane
-			await this.registerPreferencePane();
+			await Zotero.LMStudio.registerPreferencePane();
 
 			// Register menus
-			this.registerMenus();
+			Zotero.LMStudio.registerMenus();
 
 			// Register item pane section
-			this.registerItemPaneSection();
+			Zotero.LMStudio.registerItemPaneSection();
 
 			// Set up notifier for item events
-			this.registerNotifier();
+			Zotero.LMStudio.registerNotifier();
+
+			// Generate API key if not set
+			if (!Zotero.LMStudio.prefs.get("server.apiKey")) {
+				let apiKey = Zotero.SecurityUtils.generateAPIKey();
+				Zotero.LMStudio.prefs.set("server.apiKey", apiKey);
+				Zotero.debug("[LMStudio] Generated new API key");
+			}
 
 			// Start HTTP server
-			if (this.prefs.serverEnabled) {
-				await this.startServer();
+			if (Zotero.LMStudio.prefs.serverEnabled) {
+				await Zotero.LMStudio.startServer();
 			}
 
 			// Auto-discover LM Studio if URL not set
-			if (!this.prefs.llmstudioUrl || this.prefs.llmstudioUrl === "http://localhost:1234") {
-				let discovered = await this.api.discoverServer();
+			if (!Zotero.LMStudio.prefs.lmstudioUrl || Zotero.LMStudio.prefs.lmstudioUrl === "http://localhost:1234") {
+				let discovered = await Zotero.LMStudio.api.discoverServer();
 				if (discovered) {
-					Zotero.debug(`[LLMStudio] Auto-discovered LM Studio at ${discovered.url}`);
+					Zotero.debug(`[LMStudio] Auto-discovered LM Studio at ${discovered.url}`);
 				}
 			}
 
-			this.initialized = true;
-			Zotero.debug("[LLMStudio] onStartup: complete");
+			Zotero.LMStudio.initialized = true;
+			Zotero.debug("[LMStudio] onStartup: complete");
 		},
 
 		/**
 		 * Called when main window loads
 		 */
 		async onMainWindowLoad(window) {
-			Zotero.debug("[LLMStudio] onMainWindowLoad");
+			Zotero.debug("[LMStudio] onMainWindowLoad");
 
 			// Inject styles
-			this.injectStyles(window);
+			Zotero.LMStudio.injectStyles(window);
 
 			// Add keyboard shortcuts
-			this.registerKeyShortcuts(window);
+			Zotero.LMStudio.registerKeyShortcuts(window);
 		},
 
 		/**
 		 * Called when main window unloads
 		 */
 		async onMainWindowUnload(window) {
-			Zotero.debug("[LLMStudio] onMainWindowUnload");
-			this.removeKeyShortcuts(window);
+			Zotero.debug("[LMStudio] onMainWindowUnload");
+			Zotero.LMStudio.removeKeyShortcuts(window);
 		},
 
 		/**
 		 * Called on plugin shutdown
 		 */
 		async onShutdown() {
-			Zotero.debug("[LLMStudio] onShutdown: cleaning up...");
+			Zotero.debug("[LMStudio] onShutdown: cleaning up...");
 
 			// Unregister notifier
-			if (this.notifierID) {
-				Zotero.Notifier.unregisterObserver(this.notifierID);
-				this.notifierID = null;
+			if (Zotero.LMStudio.notifierID) {
+				Zotero.Notifier.unregisterObserver(Zotero.LMStudio.notifierID);
+				Zotero.LMStudio.notifierID = null;
 			}
 
 			// Unregister menus
-			this.unregisterMenus();
+			Zotero.LMStudio.unregisterMenus();
 
 			// Stop server
-			await this.stopServer();
+			await Zotero.LMStudio.stopServer();
 
-			this.initialized = false;
-			Zotero.debug("[LLMStudio] onShutdown: complete");
+			Zotero.LMStudio.initialized = false;
+			Zotero.debug("[LMStudio] onShutdown: complete");
 		},
 
 		/**
@@ -504,8 +653,8 @@ Zotero.LLMStudio = {
 		 */
 		onPrefsEvent(event, { window }) {
 			if (event === "load") {
-				Zotero.debug("[LLMStudio] Preferences loaded");
-				this.initPreferencesUI(window);
+				Zotero.debug("[LMStudio] Preferences loaded");
+				Zotero.LMStudio.initPreferencesUI(window);
 			}
 		},
 	},
@@ -521,10 +670,10 @@ Zotero.LLMStudio = {
 				scripts: [rootURI + "content/scripts/preferences.js"],
 				stylesheets: [rootURI + "content/styles/preferences.css"],
 			});
-			Zotero.debug(`[LLMStudio] Registered preference pane: ${paneID}`);
+			Zotero.debug(`[LMStudio] Registered preference pane: ${paneID}`);
 		}
 		catch (e) {
-			Zotero.debug(`[LLMStudio] Failed to register preference pane: ${e}`);
+			Zotero.debug(`[LMStudio] Failed to register preference pane: ${e}`);
 		}
 	},
 
@@ -535,7 +684,7 @@ Zotero.LLMStudio = {
 		// Tools menu item
 		try {
 			let menuID = Zotero.MenuManager.register({
-				id: "llmstudio-send-selection",
+				id: "lmstudio-send-selection",
 				label: "Send to LM Studio",
 				icon: rootURI + "content/icons/icon-16.svg",
 				callback: (event, items) => {
@@ -552,7 +701,7 @@ Zotero.LLMStudio = {
 		// Context menu for summarization
 		try {
 			let contextMenuID = Zotero.MenuManager.register({
-				id: "llmstudio-context-summarize",
+				id: "lmstudio-context-summarize",
 				label: "Summarize with LM Studio",
 				icon: rootURI + "content/icons/icon-16.svg",
 				callback: (event, items) => {
@@ -581,10 +730,10 @@ Zotero.LLMStudio = {
 	addMenuItemToWindow(win) {
 		let doc = win.document;
 		let toolsMenu = doc.getElementById("menu_ToolsPopup");
-		if (!toolsMenu || doc.getElementById("llmstudio-send-to-llm")) return;
+		if (!toolsMenu || doc.getElementById("lmstudio-send-to-llm")) return;
 
 		let menuItem = doc.createXULElement("menuitem");
-		menuItem.id = "llmstudio-send-to-llm";
+		menuItem.id = "lmstudio-send-to-llm";
 		menuItem.setAttribute("label", "Send to LM Studio");
 		menuItem.addEventListener("command", () => {
 			let items = Zotero.getActiveZoteroPane().getSelectedItems();
@@ -605,7 +754,7 @@ Zotero.LLMStudio = {
 				Zotero.MenuManager.unregister(menuID);
 			}
 			catch (e) {
-				Zotero.debug(`[LLMStudio] Failed to unregister menu ${menuID}: ${e}`);
+				Zotero.debug(`[LMStudio] Failed to unregister menu ${menuID}: ${e}`);
 			}
 		}
 		this.registeredMenus = [];
@@ -617,49 +766,55 @@ Zotero.LLMStudio = {
 	registerItemPaneSection() {
 		try {
 			let sectionID = Zotero.ItemPaneManager.registerSection({
-				paneID: "llmstudio-summary",
+				paneID: "lmstudio-summary",
 				pluginID: PLUGIN_ID,
 				header: {
-					l10nID: "llmstudio-pane-header",
+					l10nID: "lmstudio-pane-header",
 					icon: rootURI + "content/icons/icon-16.svg",
 				},
 				sidenav: {
-					l10nID: "llmstudio-pane-sidenav",
+					l10nID: "lmstudio-pane-sidenav",
 					icon: rootURI + "content/icons/icon-20.svg",
 				},
 				bodyXHTML: `
-					<html:div class="llmstudio-pane-body">
-						<html:div class="llmstudio-summary" id="llmstudio-summary-content">
+					<html:div class="lmstudio-pane-body">
+						<html:div class="lmstudio-summary" id="lmstudio-summary-content">
 							<html:p>Select an item to generate AI summary</html:p>
 						</html:div>
-						<html:div class="llmstudio-actions">
-							<html:button id="llmstudio-summarize-btn" class="btn">Summarize</html:button>
-							<html:button id="llmstudio-ask-btn" class="btn">Ask Question</html:button>
-							<html:button id="llmstudio-extract-btn" class="btn">Extract Key Points</html:button>
+						<html:div class="lmstudio-actions">
+							<html:button id="lmstudio-chat-btn" class="btn chat-btn">Chat with Document</html:button>
+						</html:div>
+						<html:div class="lmstudio-actions" style="margin-top: 8px;">
+							<html:button id="lmstudio-summarize-btn" class="btn">Summarize</html:button>
+							<html:button id="lmstudio-ask-btn" class="btn">Ask Question</html:button>
+							<html:button id="lmstudio-extract-btn" class="btn">Extract Key Points</html:button>
 						</html:div>
 					</html:div>
 				`,
 				onInit: ({ body, doc }) => {
-					let summarizeBtn = body.querySelector("#llmstudio-summarize-btn");
+					let chatBtn = body.querySelector("#lmstudio-chat-btn");
+					chatBtn?.addEventListener("click", () => this.openChatWindow());
+
+					let summarizeBtn = body.querySelector("#lmstudio-summarize-btn");
 					summarizeBtn?.addEventListener("click", () => this.summarizeCurrentItem());
 
-					let askBtn = body.querySelector("#llmstudio-ask-btn");
+					let askBtn = body.querySelector("#lmstudio-ask-btn");
 					askBtn?.addEventListener("click", () => this.promptAndAsk());
 
-					let extractBtn = body.querySelector("#llmstudio-extract-btn");
+					let extractBtn = body.querySelector("#lmstudio-extract-btn");
 					extractBtn?.addEventListener("click", () => this.extractKeyPoints());
 				},
 				onRender: ({ body, item }) => {
-					let content = body.querySelector("#llmstudio-summary-content");
+					let content = body.querySelector("#lmstudio-summary-content");
 					if (content && item) {
 						content.innerHTML = `<p>Click a button to analyze: <strong>${item.getField("title") || "this item"}</strong></p>`;
 					}
 				},
 			});
-			Zotero.debug(`[LLMStudio] Registered item pane section: ${sectionID}`);
+			Zotero.debug(`[LMStudio] Registered item pane section: ${sectionID}`);
 		}
 		catch (e) {
-			Zotero.debug(`[LLMStudio] Failed to register item pane section: ${e}`);
+			Zotero.debug(`[LMStudio] Failed to register item pane section: ${e}`);
 		}
 	},
 
@@ -676,11 +831,11 @@ Zotero.LLMStudio = {
 		this.notifierID = Zotero.Notifier.registerObserver(
 			observer,
 			["item", "collection", "tag"],
-			"llmstudio-observer",
+			"lmstudio-observer",
 			50
 		);
 
-		Zotero.debug(`[LLMStudio] Registered notifier: ${this.notifierID}`);
+		Zotero.debug(`[LMStudio] Registered notifier: ${this.notifierID}`);
 	},
 
 	/**
@@ -696,26 +851,46 @@ Zotero.LLMStudio = {
 	 * Handle new items
 	 */
 	async handleNewItems(itemIDs) {
-		Zotero.debug(`[LLMStudio] Processing ${itemIDs.length} new items`);
+		Zotero.debug(`[LMStudio] Processing ${itemIDs.length} new items`);
 		let items = await Zotero.Items.getAsync(itemIDs);
 
 		for (let item of items) {
 			if (!item.isTopLevelItem() || !item.numAttachments()) continue;
-			Zotero.debug(`[LLMStudio] Auto-summarizing: ${item.getField("title")}`);
+			Zotero.debug(`[LMStudio] Auto-summarizing: ${item.getField("title")}`);
 		}
 	},
 
 	/**
-	 * Start HTTP server
+	 * Start HTTP server (register endpoints on Zotero's built-in server)
 	 */
 	async startServer() {
 		try {
 			this.registerServerEndpoints();
-			Zotero.debug(`[LLMStudio] Server ready on port ${this.prefs.serverPort}`);
+			Zotero.debug(`[LMStudio] API endpoints registered on Zotero HTTP server`);
 		}
 		catch (e) {
-			Zotero.debug(`[LLMStudio] Failed to start server: ${e}`);
+			Zotero.debug(`[LMStudio] Failed to register endpoints: ${e}`);
 		}
+	},
+
+	/**
+	 * Validate API key from request headers
+	 */
+	validateAPIKey(request) {
+		// Check if authentication is required
+		let requireAuth = this.prefs.get("server.requireAuth", false);
+		if (!requireAuth) {
+			return true; // Authentication disabled, allow all requests
+		}
+
+		let apiKey = this.prefs.get("server.apiKey");
+		if (!apiKey) {
+			return false;
+		}
+
+		// Check for API key in headers (case-insensitive)
+		let requestKey = request.headers?.["x-api-key"] || request.headers?.["X-API-Key"];
+		return requestKey === apiKey;
 	},
 
 	/**
@@ -723,14 +898,19 @@ Zotero.LLMStudio = {
 	 */
 	registerServerEndpoints() {
 		// Status endpoint
-		Zotero.Server.Endpoints["/llmstudio/status"] = function () {};
-		Zotero.Server.Endpoints["/llmstudio/status"].prototype = {
+		Zotero.Server.Endpoints["/lmstudio/status"] = function () {};
+		Zotero.Server.Endpoints["/lmstudio/status"].prototype = {
 			supportedMethods: ["GET"],
 			supportedDataTypes: [],
 			permitBookmarklet: false,
 
 			init: async function (request) {
-				let isConnected = await Zotero.LLMStudio.api.checkServer(Zotero.LLMStudio.prefs.llmstudioUrl);
+				// Validate API key
+				if (!Zotero.LMStudio.validateAPIKey(request)) {
+					return [401, "application/json", JSON.stringify({ error: "Unauthorized" })];
+				}
+
+				let isConnected = await Zotero.LMStudio.api.checkServer(Zotero.LMStudio.prefs.lmstudioUrl);
 				return [
 					200,
 					"application/json",
@@ -738,63 +918,100 @@ Zotero.LLMStudio = {
 						status: "ok",
 						version: "0.1.0",
 						lmstudioConnected: isConnected,
-						llmstudioUrl: Zotero.LLMStudio.prefs.llmstudioUrl,
+						lmstudioUrl: Zotero.LMStudio.prefs.lmstudioUrl,
 					}),
 				];
 			},
 		};
-		this.registeredEndpoints.push("/llmstudio/status");
+		this.registeredEndpoints.push("/lmstudio/status");
 
 		// Models endpoint
-		Zotero.Server.Endpoints["/llmstudio/models"] = function () {};
-		Zotero.Server.Endpoints["/llmstudio/models"].prototype = {
+		Zotero.Server.Endpoints["/lmstudio/models"] = function () {};
+		Zotero.Server.Endpoints["/lmstudio/models"].prototype = {
 			supportedMethods: ["GET"],
 			supportedDataTypes: [],
 			permitBookmarklet: false,
 
 			init: async function (request) {
-				let models = await Zotero.LLMStudio.api.listModels(Zotero.LLMStudio.prefs.llmstudioUrl);
+				// Validate API key
+				if (!Zotero.LMStudio.validateAPIKey(request)) {
+					return [401, "application/json", JSON.stringify({ error: "Unauthorized" })];
+				}
+
+				let models = await Zotero.LMStudio.api.listModels(Zotero.LMStudio.prefs.lmstudioUrl);
 				return [200, "application/json", JSON.stringify({ models })];
 			},
 		};
-		this.registeredEndpoints.push("/llmstudio/models");
+		this.registeredEndpoints.push("/lmstudio/models");
 
 		// Chat endpoint
-		Zotero.Server.Endpoints["/llmstudio/chat"] = function () {};
-		Zotero.Server.Endpoints["/llmstudio/chat"].prototype = {
+		Zotero.Server.Endpoints["/lmstudio/chat"] = function () {};
+		Zotero.Server.Endpoints["/lmstudio/chat"].prototype = {
 			supportedMethods: ["POST"],
 			supportedDataTypes: ["application/json"],
 			permitBookmarklet: false,
 
 			init: async function (request) {
-				let data = request.data;
-				let result = await Zotero.LLMStudio.api.chat(
-					Zotero.LLMStudio.prefs.llmstudioUrl,
-					data.model || Zotero.LLMStudio.prefs.llmstudioModel,
-					data.messages,
-					data.options || {}
-				);
-				return [200, "application/json", JSON.stringify(result)];
+				// Validate API key
+				if (!Zotero.LMStudio.validateAPIKey(request)) {
+					return [401, "application/json", JSON.stringify({ error: "Unauthorized" })];
+				}
+
+				// Validate request data
+				try {
+					Zotero.SecurityUtils.validateChatRequest(request.data);
+				} catch (e) {
+					return [400, "application/json", JSON.stringify({ error: e.message })];
+				}
+
+				try {
+					let data = request.data;
+					let result = await Zotero.LMStudio.api.chat(
+						Zotero.LMStudio.prefs.lmstudioUrl,
+						data.model || Zotero.LMStudio.prefs.lmstudioModel,
+						data.messages,
+						data.options || {}
+					);
+					return [200, "application/json", JSON.stringify(result)];
+				} catch (e) {
+					return [500, "application/json", JSON.stringify({ error: e.message })];
+				}
 			},
 		};
-		this.registeredEndpoints.push("/llmstudio/chat");
+		this.registeredEndpoints.push("/lmstudio/chat");
 
 		// Search endpoint
-		Zotero.Server.Endpoints["/llmstudio/search"] = function () {};
-		Zotero.Server.Endpoints["/llmstudio/search"].prototype = {
+		Zotero.Server.Endpoints["/lmstudio/search"] = function () {};
+		Zotero.Server.Endpoints["/lmstudio/search"].prototype = {
 			supportedMethods: ["POST"],
 			supportedDataTypes: ["application/json"],
 			permitBookmarklet: false,
 
 			init: async function (request) {
-				let query = request.data.query;
-				let results = await Zotero.LLMStudio.semanticSearch(query);
-				return [200, "application/json", JSON.stringify(results)];
+				// Validate API key
+				if (!Zotero.LMStudio.validateAPIKey(request)) {
+					return [401, "application/json", JSON.stringify({ error: "Unauthorized" })];
+				}
+
+				// Validate query
+				try {
+					Zotero.SecurityUtils.validateSearchQuery(request.data?.query);
+				} catch (e) {
+					return [400, "application/json", JSON.stringify({ error: e.message })];
+				}
+
+				try {
+					let query = request.data.query;
+					let results = await Zotero.LMStudio.semanticSearch(query);
+					return [200, "application/json", JSON.stringify(results)];
+				} catch (e) {
+					return [500, "application/json", JSON.stringify({ error: e.message })];
+				}
 			},
 		};
-		this.registeredEndpoints.push("/llmstudio/search");
+		this.registeredEndpoints.push("/lmstudio/search");
 
-		Zotero.debug(`[LLMStudio] Registered ${this.registeredEndpoints.length} endpoints`);
+		Zotero.debug(`[LMStudio] Registered ${this.registeredEndpoints.length} endpoints`);
 	},
 
 	/**
@@ -805,7 +1022,7 @@ Zotero.LLMStudio = {
 			delete Zotero.Server.Endpoints[endpoint];
 		}
 		this.registeredEndpoints = [];
-		Zotero.debug("[LLMStudio] Server stopped");
+		Zotero.debug("[LMStudio] Server stopped");
 	},
 
 	/**
@@ -815,7 +1032,7 @@ Zotero.LLMStudio = {
 		let doc = window.document;
 		let link = doc.createElement("link");
 		link.rel = "stylesheet";
-		link.href = rootURI + "content/styles/llmstudio.css";
+		link.href = rootURI + "content/styles/lmstudio.css";
 		doc.head.appendChild(link);
 	},
 
@@ -824,10 +1041,10 @@ Zotero.LLMStudio = {
 	 */
 	registerKeyShortcuts(window) {
 		let key = window.document.createElement("key");
-		key.id = "llmstudio-key-send";
+		key.id = "lmstudio-key-send";
 		key.setAttribute("key", "L");
 		key.setAttribute("modifiers", "accel shift");
-		key.setAttribute("oncommand", "Zotero.LLMStudio.sendSelectedItemsToLLM();");
+		key.setAttribute("oncommand", "Zotero.LMStudio.sendSelectedItemsToLLM();");
 
 		let keyset = window.document.getElementById("mainKeyset");
 		if (keyset) keyset.appendChild(key);
@@ -837,7 +1054,7 @@ Zotero.LLMStudio = {
 	 * Remove keyboard shortcuts
 	 */
 	removeKeyShortcuts(window) {
-		let key = window.document.getElementById("llmstudio-key-send");
+		let key = window.document.getElementById("lmstudio-key-send");
 		if (key) key.remove();
 	},
 
@@ -846,7 +1063,7 @@ Zotero.LLMStudio = {
 	 */
 	initPreferencesUI(window) {
 		let doc = window.document;
-		let testBtn = doc.getElementById("llmstudio-test-connection-button");
+		let testBtn = doc.getElementById("lmstudio-test-connection-button");
 		if (testBtn) {
 			testBtn.addEventListener("command", async () => {
 				await this.testConnection(window);
@@ -860,7 +1077,7 @@ Zotero.LLMStudio = {
 	async testConnection(window) {
 		let doc = window.document;
 		let resultSpan = doc.getElementById("connection-test-result");
-		let modelsSelect = doc.getElementById("llmstudio-model-select");
+		let modelsSelect = doc.getElementById("lmstudio-model-select");
 
 		if (resultSpan) {
 			resultSpan.textContent = "Testing...";
@@ -868,7 +1085,7 @@ Zotero.LLMStudio = {
 		}
 
 		try {
-			let url = this.prefs.llmstudioUrl;
+			let url = this.prefs.lmstudioUrl;
 			let isConnected = await this.api.checkServer(url);
 
 			if (isConnected) {
@@ -944,8 +1161,8 @@ Zotero.LLMStudio = {
 
 		try {
 			let result = await this.api.chat(
-				this.prefs.llmstudioUrl,
-				options.model || this.prefs.llmstudioModel,
+				this.prefs.lmstudioUrl,
+				options.model || this.prefs.lmstudioModel,
 				messages,
 				{
 					maxTokens: options.maxTokens || this.prefs.maxTokens,
@@ -969,8 +1186,8 @@ Zotero.LLMStudio = {
 		let messages = chatOrMessages.messages || chatOrMessages;
 
 		yield* this.api.chatStream(
-			this.prefs.llmstudioUrl,
-			options.model || this.prefs.llmstudioModel,
+			this.prefs.lmstudioUrl,
+			options.model || this.prefs.lmstudioModel,
 			messages,
 			{
 				maxTokens: options.maxTokens || this.prefs.maxTokens,
@@ -985,19 +1202,26 @@ Zotero.LLMStudio = {
 	async summarizeItems(items) {
 		if (!items || !items.length) return;
 
-		let chat = ChatManager.fromItems(items, {
-			includeAbstracts: true,
-			prompt: "Provide a concise summary of these research items, highlighting the key findings and contributions:",
-		});
+		try {
+			let chat = ChatManager.fromItems(items, {
+				includeAbstracts: true,
+				prompt: "Provide a concise summary of these research items, highlighting the key findings and contributions:",
+			});
 
-		let result = await this.chat(chat);
+			let result = await this.chat(chat);
 
-		// Store summary as note on first item
-		if (items[0] && result.content) {
-			await this.addNoteToItem(items[0], result.content, "LM Studio Summary");
+			// Store summary as note on first item
+			if (items[0] && result.content) {
+				await this.addNoteToItem(items[0], result.content, "LM Studio Summary");
+			}
+
+			Zotero.SecurityUtils.notifySuccess("Summary generated successfully");
+			return result.content;
+		} catch (e) {
+			this.log(`Summarize failed: ${e.message}`, "error");
+			Zotero.SecurityUtils.notifyError("Failed to generate summary", e.message);
+			throw e;
 		}
-
-		return result.content;
 	},
 
 	/**
@@ -1019,28 +1243,35 @@ Zotero.LLMStudio = {
 
 		let item = items[0];
 
-		// Use prompt service
-		let promptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-			.getService(Components.interfaces.nsIPromptService);
+		try {
+			// Use prompt service
+			let promptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
+				.getService(Components.interfaces.nsIPromptService);
 
-		let input = { value: "" };
-		let result = promptService.prompt(
-			null,
-			"Ask about this item",
-			`Question about: ${item.getField("title") || "this item"}`,
-			input,
-			null,
-			{}
-		);
+			let input = { value: "" };
+			let result = promptService.prompt(
+				null,
+				"Ask about this item",
+				`Question about: ${item.getField("title") || "this item"}`,
+				input,
+				null,
+				{}
+			);
 
-		if (result && input.value) {
-			let chat = ChatManager.fromItem(item, true);
-			chat.append("user", input.value);
+			if (result && input.value) {
+				let chat = ChatManager.fromItem(item, true);
+				chat.append("user", input.value);
 
-			let response = await this.chat(chat);
-			await this.addNoteToItem(item, `Q: ${input.value}\n\nA: ${response.content}`, "LM Studio Q&A");
+				let response = await this.chat(chat);
+				await this.addNoteToItem(item, `Q: ${input.value}\n\nA: ${response.content}`, "LM Studio Q&A");
 
-			return response.content;
+				Zotero.SecurityUtils.notifySuccess("Question answered successfully");
+				return response.content;
+			}
+		} catch (e) {
+			this.log(`promptAndAsk failed: ${e.message}`, "error");
+			Zotero.SecurityUtils.notifyError("Failed to answer question", e.message);
+			throw e;
 		}
 	},
 
@@ -1052,26 +1283,68 @@ Zotero.LLMStudio = {
 		if (!items.length) return;
 
 		let item = items[0];
-		let chat = ChatManager.fromItem(item, true);
 
-		chat.append("user", "Extract the key points, main arguments, and conclusions from this research paper. Format as a bulleted list.");
+		try {
+			let chat = ChatManager.fromItem(item, true);
 
-		let result = await this.chat(chat);
+			chat.append("user", "Extract the key points, main arguments, and conclusions from this research paper. Format as a bulleted list.");
 
-		if (result.content) {
-			await this.addNoteToItem(item, result.content, "LM Studio Key Points");
+			let result = await this.chat(chat);
+
+			if (result.content) {
+				await this.addNoteToItem(item, result.content, "LM Studio Key Points");
+			}
+
+			Zotero.SecurityUtils.notifySuccess("Key points extracted successfully");
+			return result.content;
+		} catch (e) {
+			this.log(`extractKeyPoints failed: ${e.message}`, "error");
+			Zotero.SecurityUtils.notifyError("Failed to extract key points", e.message);
+			throw e;
+		}
+	},
+
+	/**
+	 * Open chat window for continuous conversation with document
+	 */
+	openChatWindow() {
+		let items = Zotero.getActiveZoteroPane().getSelectedItems();
+		if (!items.length) {
+			Zotero.SecurityUtils.notifyError("No item selected");
+			return;
 		}
 
-		return result.content;
+		let item = items[0];
+
+		// Open the chat window
+		try {
+			window.openDialog(
+				"chrome://lmstudio-zotero/content/chat-panel.xhtml",
+				"lmstudio-chat-window",
+				"chrome,dialog=no,resizable,centerscreen,width=600,height=500",
+				{ item: item }
+			);
+			this.log(`Opened chat window for item: ${item.key}`);
+		} catch (e) {
+			this.log(`Failed to open chat window: ${e.message}`, "error");
+			Zotero.SecurityUtils.notifyError("Failed to open chat window", e.message);
+		}
 	},
 
 	/**
 	 * Add a note to an item
 	 */
 	async addNoteToItem(item, noteText, title = "LM Studio Note") {
+		// Sanitize inputs to prevent XSS attacks
+		let safeTitle = Zotero.SecurityUtils.sanitizeHTML(title);
+		let safeContent = Zotero.SecurityUtils.sanitizeHTML(noteText);
+
+		// Convert newlines to <br/> after sanitization
+		safeContent = safeContent.replace(/\n/g, "<br/>");
+
 		let note = new Zotero.Item("note");
 		note.parentKey = item.key;
-		note.setNote(`<h2>${title}</h2>\n<p>${noteText.replace(/\n/g, "<br/>")}</p>`);
+		note.setNote(`<h2>${safeTitle}</h2>\n<div>${safeContent}</div>`);
 		await note.saveTx();
 
 		this.log(`Added note to item ${item.key}`);
@@ -1104,8 +1377,8 @@ Zotero.LLMStudio = {
 	 */
 	async embed(text) {
 		return await this.api.embed(
-			this.prefs.llmstudioUrl,
-			this.prefs.llmstudioModel,
+			this.prefs.lmstudioUrl,
+			this.prefs.lmstudioModel,
 			text
 		);
 	},
@@ -1118,7 +1391,7 @@ Zotero.LLMStudio = {
 	 * Logging utility
 	 */
 	log(message, level = "info") {
-		let prefix = "[LLMStudio]";
+		let prefix = "[LMStudio]";
 
 		switch (level) {
 			case "error":
@@ -1149,7 +1422,7 @@ Zotero.LLMStudio = {
 
 // Store rootURI reference
 if (typeof rootURI !== "undefined") {
-	Zotero.LLMStudio._rootURI = rootURI;
+	Zotero.LMStudio._rootURI = rootURI;
 }
 
-Zotero.debug("[LLMStudio] Plugin script loaded");
+Zotero.debug("[LMStudio] Plugin script loaded");
