@@ -1,0 +1,85 @@
+/**
+ * LLM Studio Zotero Plugin - Main Styles
+ */
+
+/* Item Pane Section */
+.llmstudio-pane-body {
+	padding: 8px;
+}
+
+.llmstudio-summary {
+	min-height: 100px;
+	padding: 8px;
+	background: var(--material-background20, #f5f5f5);
+	border-radius: 4px;
+	margin-bottom: 8px;
+}
+
+.llmstudio-summary p {
+	margin: 0;
+	color: var(--fill-secondary, #666);
+}
+
+.llmstudio-actions {
+	display: flex;
+	gap: 8px;
+}
+
+.llmstudio-actions button {
+	padding: 6px 12px;
+	border: 1px solid var(--material-border, #ccc);
+	border-radius: 4px;
+	background: var(--material-button, #fff);
+	cursor: pointer;
+}
+
+.llmstudio-actions button:hover {
+	background: var(--material-button-hover, #e8e8e8);
+}
+
+.llmstudio-actions button:active {
+	background: var(--material-button-active, #d8d8d8);
+}
+
+/* Status indicator */
+.llmstudio-status {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 11px;
+}
+
+.llmstudio-status-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+}
+
+.llmstudio-status-dot.connected {
+	background: #4caf50;
+}
+
+.llmstudio-status-dot.disconnected {
+	background: #f44336;
+}
+
+.llmstudio-status-dot.connecting {
+	background: #ff9800;
+	animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+	0% { opacity: 1; }
+	50% { opacity: 0.5; }
+	100% { opacity: 1; }
+}
+
+/* Menu item icons */
+menuitem[id^="llmstudio-"] {
+	list-style-image: url("chrome://llmstudio-zotero/content/icons/icon-16.svg");
+}
+
+/* Context menu */
+#zotero-itemmenu menuitem[id^="llmstudio-"] {
+	list-style-image: url("chrome://llmstudio-zotero/content/icons/icon-16.svg");
+}

@@ -2,7 +2,7 @@
   <html:link rel="localization" href="llmstudio-plugin-preferences.ftl" />
 </linkset>
 
-<prefpane id="llmstudio-plugin-preferences" onload="Zotero.LLMStudio.hooks.onPrefsEvent?.('load', { window });">
+<prefpane id="llmstudio-plugin-preferences" onload="Zotero.LLMStudio?.hooks.onPrefsEvent?.('load', { window });">
   <preferences>
     <!-- Server Settings -->
     <preference id="extensions.zotero.llmstudio-zotero.server.enabled"
@@ -58,12 +58,31 @@
           style="max-width: 100px;"
         ></html:input>
       </hbox>
+
+      <html:div class="llmstudio-hint" data-l10n-id="llmstudio-pref-server-hint" style="margin-top: 8px;"></html:div>
     </groupbox>
 
     <!-- LLM Studio Connection -->
     <groupbox style="margin-bottom: 15px;">
       <label><html:h2 data-l10n-id="llmstudio-pref-connection-title"></html:h2></label>
 
+      <!-- Provider Preset -->
+      <hbox align="center" style="margin-bottom: 10px;">
+        <html:label
+          for="llmstudio-pref-provider"
+          data-l10n-id="llmstudio-pref-provider"
+          style="min-width: 100px;"
+        ></html:label>
+        <html:select id="llmstudio-pref-provider" style="flex: 1; max-width: 200px;">
+          <html:option value="llmstudio" data-l10n-id="llmstudio-pref-provider-llmstudio"></html:option>
+          <html:option value="ollama">Ollama</html:option>
+          <html:option value="openai">OpenAI</html:option>
+          <html:option value="anthropic">Anthropic</html:option>
+          <html:option value="custom" data-l10n-id="llmstudio-pref-provider-custom"></html:option>
+        </html:select>
+      </hbox>
+
+      <!-- URL -->
       <hbox align="center" style="margin-bottom: 10px;">
         <html:label
           for="llmstudio-pref-llmstudio-url"
@@ -79,6 +98,7 @@
         ></html:input>
       </hbox>
 
+      <!-- Model -->
       <hbox align="center" style="margin-bottom: 10px;">
         <html:label
           for="llmstudio-pref-llmstudio-model"
@@ -94,6 +114,7 @@
         ></html:input>
       </hbox>
 
+      <!-- Test Connection -->
       <hbox style="margin-top: 10px;">
         <button
           id="llmstudio-test-connection-button"
@@ -113,6 +134,8 @@
         data-l10n-id="llmstudio-pref-auto-summarize"
       ></checkbox>
 
+      <html:div class="llmstudio-hint" data-l10n-id="llmstudio-pref-auto-summarize-hint" style="margin-left: 24px; margin-bottom: 10px;"></html:div>
+
       <hbox align="center" style="margin-top: 10px;">
         <html:label
           for="llmstudio-pref-max-tokens"
@@ -125,9 +148,23 @@
           preference="extensions.zotero.llmstudio-zotero.features.maxTokens"
           min="256"
           max="32768"
+          step="256"
           style="max-width: 100px;"
         ></html:input>
       </hbox>
+    </groupbox>
+
+    <!-- API Endpoints Info -->
+    <groupbox style="margin-bottom: 15px;">
+      <label><html:h2 data-l10n-id="llmstudio-pref-api-title"></html:h2></label>
+      <html:p data-l10n-id="llmstudio-pref-api-description" style="margin-bottom: 10px; color: #666;"></html:p>
+
+      <vbox style="font-family: monospace; font-size: 11px; background: #f5f5f5; padding: 8px; border-radius: 4px;">
+        <html:div>GET  http://localhost:23121/llmstudio/status</html:div>
+        <html:div>GET  http://localhost:23121/llmstudio/items</html:div>
+        <html:div>POST http://localhost:23121/llmstudio/items</html:div>
+        <html:div>POST http://localhost:23121/llmstudio/search</html:div>
+      </vbox>
     </groupbox>
 
     <!-- Help -->
@@ -135,6 +172,7 @@
       <html:label
         data-l10n-id="llmstudio-pref-help"
         data-l10n-args='{"version": "0.1.0"}'
+        style="color: #666;"
       ></html:label>
     </vbox>
   </vbox>

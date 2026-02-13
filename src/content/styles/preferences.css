@@ -1,0 +1,111 @@
+/**
+ * LLM Studio Zotero Plugin - Preferences Styles
+ */
+
+/* Group boxes */
+#llmstudio-plugin-preferences groupbox {
+	border: 1px solid var(--material-border, #ddd);
+	border-radius: 4px;
+	margin-bottom: 16px;
+}
+
+#llmstudio-plugin-preferences groupbox > label:first-child {
+	margin-bottom: 8px;
+}
+
+#llmstudio-plugin-preferences h2 {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--fill-primary, #333);
+}
+
+/* Form elements */
+#llmstudio-plugin-preferences html|input,
+#llmstudio-plugin-preferences html|select {
+	padding: 6px 8px;
+	border: 1px solid var(--material-border, #ccc);
+	border-radius: 4px;
+	background: var(--material-background, #fff);
+	color: var(--fill-primary, #333);
+}
+
+#llmstudio-plugin-preferences html|input:focus,
+#llmstudio-plugin-preferences html|select:focus {
+	outline: none;
+	border-color: var(--accent-color, #4a90d9);
+	box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.2);
+}
+
+#llmstudio-plugin-preferences html|input[type="number"] {
+	max-width: 100px;
+}
+
+#llmstudio-plugin-preferences html|input[type="password"] {
+	font-family: monospace;
+}
+
+/* Buttons */
+#llmstudio-plugin-preferences button {
+	padding: 6px 16px;
+	border: 1px solid var(--material-border, #ccc);
+	border-radius: 4px;
+	background: var(--material-button, #f5f5f5);
+	cursor: pointer;
+}
+
+#llmstudio-plugin-preferences button:hover {
+	background: var(--material-button-hover, #e8e8e8);
+}
+
+#llmstudio-plugin-preferences button:active {
+	background: var(--material-button-active, #d8d8d8);
+}
+
+#llmstudio-plugin-preferences button:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/* Checkboxes */
+#llmstudio-plugin-preferences checkbox {
+	margin: 8px 0;
+}
+
+/* Labels */
+#llmstudio-plugin-preferences html|label {
+	color: var(--fill-primary, #333);
+}
+
+/* Hints and help text */
+.llmstudio-hint {
+	font-size: 11px;
+	color: var(--fill-secondary, #666);
+	font-style: italic;
+	margin-top: 4px;
+}
+
+/* Connection test result */
+#connection-test-result {
+	font-size: 12px;
+	padding: 4px 8px;
+	border-radius: 4px;
+}
+
+/* Provider select */
+#llmstudio-pref-provider {
+	max-width: 200px;
+}
+
+/* Help section */
+#llmstudio-plugin-preferences vbox:last-child {
+	padding: 12px;
+	background: var(--material-background20, #f9f9f9);
+	border-radius: 4px;
+	margin-top: 16px;
+}
+
+#llmstudio-plugin-preferences vbox:last-child html|label {
+	font-size: 11px;
+	color: var(--fill-secondary, #666);
+}
