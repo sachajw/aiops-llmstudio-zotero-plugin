@@ -1305,6 +1305,34 @@ Zotero.LMStudio = {
 	},
 
 	/**
+	 * Open chat window for continuous conversation with document
+	 */
+	openChatWindow() {
+		let items = Zotero.getActiveZoteroPane().getSelectedItems();
+		if (!items.length) {
+			Zotero.SecurityUtils.notifyError("No item selected");
+			return;
+		}
+
+		let item = items[0];
+
+		// Open the chat window
+		try {
+			window.openDialog(
+				"chrome://lmstudio-zotero/content/chat-panel.xhtml",
+				"lmstudio-chat-window",
+				"chrome,dialog=no,resizable,centerscreen,width=600,height=500",
+				{ item: item }
+			);
+			this.log(`Opened chat window for item: ${item.key}`);
+		} catch (e) {
+			this.log(`Failed to open chat window: ${e.message}`, "error");
+			Zotero.SecurityUtils.notifyError("Failed to open chat window", e.message);
+		}
+	},
+	},
+
+	/**
 	 * Add a note to an item
 	 */
 	async addNoteToItem(item, noteText, title = "LM Studio Note") {
