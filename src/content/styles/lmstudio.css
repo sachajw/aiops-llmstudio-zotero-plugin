@@ -1,0 +1,203 @@
+/**
+ * LLM Studio Zotero Plugin - Main Styles
+ */
+
+/* Item Pane Section */
+.lmstudio-pane-body {
+	padding: 8px;
+}
+
+.lmstudio-summary {
+	min-height: 100px;
+	padding: 8px;
+	background: var(--material-background20, #f5f5f5);
+	border-radius: 4px;
+	margin-bottom: 8px;
+}
+
+.lmstudio-summary p {
+	margin: 0;
+	color: var(--fill-secondary, #666);
+}
+
+.lmstudio-actions {
+	display: flex;
+	gap: 8px;
+}
+
+.lmstudio-actions button {
+	padding: 6px 12px;
+	border: 1px solid var(--material-border, #ccc);
+	border-radius: 4px;
+	background: var(--material-button, #fff);
+	cursor: pointer;
+}
+
+.lmstudio-actions button:hover {
+	background: var(--material-button-hover, #e8e8e8);
+}
+
+.lmstudio-actions button:active {
+	background: var(--material-button-active, #d8d8d8);
+}
+
+/* Status indicator */
+.lmstudio-status {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 11px;
+}
+
+.lmstudio-status-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+}
+
+.lmstudio-status-dot.connected {
+	background: #4caf50;
+}
+
+.lmstudio-status-dot.disconnected {
+	background: #f44336;
+}
+
+.lmstudio-status-dot.connecting {
+	background: #ff9800;
+	animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+	0% { opacity: 1; }
+	50% { opacity: 0.5; }
+	100% { opacity: 1; }
+}
+
+/* Menu item icons */
+menuitem[id^="lmstudio-"] {
+	list-style-image: url("chrome://lmstudio-zotero/content/icons/icon-16.svg");
+}
+
+/* Context menu */
+#zotero-itemmenu menuitem[id^="lmstudio-"] {
+	list-style-image: url("chrome://lmstudio-zotero/content/icons/icon-16.svg");
+}
+
+/* Chat Panel Styles */
+.chat-header {
+	align-items: center;
+}
+
+.chat-message {
+	margin-bottom: 12px;
+	max-width: 85%;
+}
+
+.chat-message.user {
+	margin-left: auto;
+	text-align: right;
+}
+
+.chat-message.assistant {
+	margin-right: auto;
+}
+
+.chat-message.system {
+	margin: 16px auto;
+	max-width: 100%;
+	text-align: center;
+}
+
+.chat-message .message-header {
+	font-size: 11px;
+	font-weight: 600;
+	color: #666;
+	margin-bottom: 4px;
+}
+
+.chat-message.user .message-header {
+	color: #1976d2;
+}
+
+.chat-message.assistant .message-header {
+	color: #7b1fa2;
+}
+
+.chat-message .message-content {
+	padding: 10px 14px;
+	border-radius: 12px;
+	font-size: 13px;
+	line-height: 1.5;
+	word-wrap: break-word;
+}
+
+.chat-message.user .message-content {
+	background: #1976d2;
+	color: white;
+	border-bottom-right-radius: 4px;
+}
+
+.chat-message.assistant .message-content {
+	background: #f0f0f0;
+	color: #333;
+	border-bottom-left-radius: 4px;
+}
+
+.chat-message.system .message-content {
+	background: #fff3e0;
+	color: #e65100;
+	padding: 8px 16px;
+	border-radius: 16px;
+	font-size: 12px;
+}
+
+.chat-message.typing .message-content {
+	color: #999;
+	font-style: italic;
+}
+
+.chat-input-area {
+	align-items: flex-end;
+}
+
+.chat-input-area textarea {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.chat-input-area textarea:focus {
+	outline: none;
+	border-color: #1976d2;
+	box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+}
+
+/* Chat button in item pane */
+.lmstudio-actions .chat-btn {
+	background: #1976d2;
+	color: white;
+	border-color: #1976d2;
+	font-weight: 500;
+}
+
+.lmstudio-actions .chat-btn:hover {
+	background: #1565c0;
+}
+
+/* Code blocks in chat */
+.chat-message .message-content pre {
+	background: rgba(0, 0, 0, 0.05);
+	padding: 8px;
+	border-radius: 4px;
+	overflow-x: auto;
+	margin: 8px 0;
+}
+
+.chat-message .message-content code {
+	font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+	font-size: 12px;
+}
+
+.chat-message.user .message-content pre,
+.chat-message.user .message-content code {
+	background: rgba(255, 255, 255, 0.15);
+}

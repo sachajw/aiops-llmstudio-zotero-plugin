@@ -1,18 +1,18 @@
 {
   "manifest_version": 2,
-  "name": "LLM Studio for Zotero",
+  "name": "LM Studio for Zotero",
   "version": "0.1.0",
-  "description": "Connect Zotero to LLM Studio for AI-powered research assistance",
-  "homepage_url": "https://github.com/your-org/aiops-llmstudio-zotero-plugin",
-  "author": "AIOps Team",
+  "description": "Connect Zotero to LM Studio for AI-powered research assistance",
+  "homepage_url": "https://github.com/sachajw/aiops-lmstudio-zotero-plugin",
+  "author": "Sacha Wharton",
   "icons": {
     "48": "content/icons/icon-48.png",
     "96": "content/icons/icon-96.png"
   },
   "applications": {
     "zotero": {
-      "id": "llmstudio-zotero@aiops.dev",
-      "update_url": "https://github.com/your-org/aiops-llmstudio-zotero-plugin/releases/latest/download/update.json",
+      "id": "lmstudio-zotero@aiops.dev",
+      "update_url": "https://github.com/sachajw/aiops-lmstudio-zotero-plugin/releases/latest/download/update.json",
       "strict_min_version": "6.999",
       "strict_max_version": "8.*"
     }

@@ -1,98 +1,228 @@
 <linkset>
-  <html:link rel="localization" href="llmstudio-plugin-preferences.ftl" />
+  <html:link rel="localization" href="lmstudio-plugin-preferences.ftl" />
 </linkset>
 
-<prefpane id="llmstudio-plugin-preferences" onload="Zotero.LLMStudio?.hooks.onPrefsEvent?.('load', { window });">
+<prefpane id="lmstudio-plugin-preferences" onload="Zotero.LMStudio?.hooks.onPrefsEvent?.('load', { window });">
   <preferences>
     <!-- Server Settings -->
-    <preference id="extensions.zotero.llmstudio-zotero.server.enabled"
-                name="extensions.zotero.llmstudio-zotero.server.enabled"
+    <preference id="extensions.zotero.lmstudio-zotero.server.enabled"
+                name="extensions.zotero.lmstudio-zotero.server.enabled"
                 type="bool" />
-    <preference id="extensions.zotero.llmstudio-zotero.server.port"
-                name="extensions.zotero.llmstudio-zotero.server.port"
-                type="int" />
-    <preference id="extensions.zotero.llmstudio-zotero.server.host"
-                name="extensions.zotero.llmstudio-zotero.server.host"
+    <preference id="extensions.zotero.lmstudio-zotero.server.apiKey"
+                name="extensions.zotero.lmstudio-zotero.server.apiKey"
+                type="string" />
+    <preference id="extensions.zotero.lmstudio-zotero.server.requireAuth"
+                name="extensions.zotero.lmstudio-zotero.server.requireAuth"
+                type="bool" />
+
+    <!-- Security Settings -->
+    <preference id="extensions.zotero.lmstudio-zotero.security.enableStrictValidation"
+                name="extensions.zotero.lmstudio-zotero.security.enableStrictValidation"
+                type="bool" />
+    <preference id="extensions.zotero.lmstudio-zotero.security.allowRemoteServers"
+                name="extensions.zotero.lmstudio-zotero.security.allowRemoteServers"
+                type="bool" />
+    <preference id="extensions.zotero.lmstudio-zotero.security.trustedHosts"
+                name="extensions.zotero.lmstudio-zotero.security.trustedHosts"
                 type="string" />
 
     <!-- LLM Studio Connection -->
-    <preference id="extensions.zotero.llmstudio-zotero.llmstudio.url"
-                name="extensions.zotero.llmstudio-zotero.llmstudio.url"
+    <preference id="extensions.zotero.lmstudio-zotero.lmstudio.url"
+                name="extensions.zotero.lmstudio-zotero.lmstudio.url"
                 type="string" />
-    <preference id="extensions.zotero.llmstudio-zotero.llmstudio.model"
-                name="extensions.zotero.llmstudio-zotero.llmstudio.model"
+    <preference id="extensions.zotero.lmstudio-zotero.lmstudio.model"
+                name="extensions.zotero.lmstudio-zotero.lmstudio.model"
+                type="string" />
+    <preference id="extensions.zotero.lmstudio-zotero.lmstudio.apiVersion"
+                name="extensions.zotero.lmstudio-zotero.lmstudio.apiVersion"
+                type="string" />
+    <preference id="extensions.zotero.lmstudio-zotero.lmstudio.customEndpoint"
+                name="extensions.zotero.lmstudio-zotero.lmstudio.customEndpoint"
                 type="string" />
 
-    <!-- Features -->
-    <preference id="extensions.zotero.llmstudio-zotero.features.autoSummarize"
-                name="extensions.zotero.llmstudio-zotero.features.autoSummarize"
+    <!-- LM Studio v1 API Features -->
+    <preference id="extensions.zotero.lmstudio-zotero.lmstudio.useStatefulChats"
+                name="extensions.zotero.lmstudio-zotero.lmstudio.useStatefulChats"
                 type="bool" />
-    <preference id="extensions.zotero.llmstudio-zotero.features.maxTokens"
-                name="extensions.zotero.llmstudio-zotero.features.maxTokens"
+    <preference id="extensions.zotero.lmstudio-zotero.lmstudio.enableMCP"
+                name="extensions.zotero.lmstudio-zotero.lmstudio.enableMCP"
+                type="bool" />
+    <preference id="extensions.zotero.lmstudio-zotero.lmstudio.streamModelLoading"
+                name="extensions.zotero.lmstudio-zotero.lmstudio.streamModelLoading"
+                type="bool" />
+    <preference id="extensions.zotero.lmstudio-zotero.lmstudio.streamPromptProcessing"
+                name="extensions.zotero.lmstudio-zotero.lmstudio.streamPromptProcessing"
+                type="bool" />
+    <preference id="extensions.zotero.lmstudio-zotero.lmstudio.contextLength"
+                name="extensions.zotero.lmstudio-zotero.lmstudio.contextLength"
+                type="int" />
+
+    <!-- Features -->
+    <preference id="extensions.zotero.lmstudio-zotero.features.autoSummarize"
+                name="extensions.zotero.lmstudio-zotero.features.autoSummarize"
+                type="bool" />
+    <preference id="extensions.zotero.lmstudio-zotero.features.maxTokens"
+                name="extensions.zotero.lmstudio-zotero.features.maxTokens"
                 type="int" />
   </preferences>
 
   <vbox flex="1" style="padding: 10px;">
     <!-- Server Settings -->
     <groupbox style="margin-bottom: 15px;">
-      <label><html:h2 data-l10n-id="llmstudio-pref-server-title"></html:h2></label>
+      <label><html:h2 data-l10n-id="lmstudio-pref-server-title"></html:h2></label>
 
       <checkbox
-        id="llmstudio-pref-server-enabled"
-        preference="extensions.zotero.llmstudio-zotero.server.enabled"
-        data-l10n-id="llmstudio-pref-server-enable"
+        id="lmstudio-pref-server-enabled"
+        preference="extensions.zotero.lmstudio-zotero.server.enabled"
+        data-l10n-id="lmstudio-pref-server-enable"
       ></checkbox>
+
+      <html:div class="lmstudio-hint" style="margin-top: 8px; color: #666;">
+        API endpoints are registered on Zotero's built-in HTTP server.
+        Configure the port in Zotero Preferences → Advanced → General → HTTP Server Port (default: 23119).
+      </html:div>
+
+      <!-- API Authentication Section -->
+      <checkbox
+        id="lmstudio-pref-require-auth"
+        preference="extensions.zotero.lmstudio-zotero.server.requireAuth"
+        style="margin-top: 15px;"
+      >Require API key authentication for HTTP endpoints</checkbox>
+
+      <html:div class="lmstudio-hint" style="margin-left: 24px; margin-top: 5px; color: #666;">
+        Optional: Enable this for additional security if you're concerned about other local apps accessing your Zotero data
+      </html:div>
+
+      <!-- API Key Section (shown when auth is enabled) -->
+      <vbox id="lmstudio-api-key-section" style="margin-top: 10px; margin-left: 24px;">
+        <hbox align="center">
+          <html:label style="min-width: 80px; font-weight: bold;">API Key:</html:label>
+          <html:input
+            type="text"
+            id="lmstudio-pref-api-key"
+            preference="extensions.zotero.lmstudio-zotero.server.apiKey"
+            readonly="true"
+            style="flex: 1; max-width: 400px; font-family: monospace; font-size: 11px;"
+          ></html:input>
+          <button id="lmstudio-copy-api-key-button" style="margin-left: 5px;">Copy</button>
+          <button id="lmstudio-regenerate-api-key-button" style="margin-left: 5px;">Regenerate</button>
+        </hbox>
+
+        <html:div class="lmstudio-hint" style="margin-top: 8px; margin-left: 80px;">
+          Include this API key in the X-API-Key header for all HTTP API requests
+        </html:div>
+
+        <html:div style="margin-top: 10px; margin-left: 80px; font-family: monospace; font-size: 11px; background: #f5f5f5; padding: 8px; border-radius: 4px; max-width: 500px;">
+          <html:div style="color: #666; margin-bottom: 4px;">Example:</html:div>
+          <html:div>curl -H "X-API-Key: YOUR_KEY" \</html:div>
+          <html:div style="margin-left: 20px;">http://localhost:23119/lmstudio/status</html:div>
+        </html:div>
+      </vbox>
+    </groupbox>
+
+    <!-- Security Settings -->
+    <groupbox style="margin-bottom: 15px;">
+      <label><html:h2>Advanced Security (Optional)</html:h2></label>
+
+      <html:div class="lmstudio-hint" style="margin-bottom: 10px; color: #666;">
+        These settings are optional for local-only usage. Enable them for additional security when needed.
+      </html:div>
+
+      <checkbox
+        id="lmstudio-pref-strict-validation"
+        preference="extensions.zotero.lmstudio-zotero.security.enableStrictValidation"
+      >Enable strict URL validation (SSRF protection)</checkbox>
+
+      <html:div class="lmstudio-hint" style="margin-left: 24px; margin-top: 5px; margin-bottom: 10px; color: #666;">
+        Blocks connections to private IP ranges and cloud metadata endpoints. Not needed for local-only setups.
+      </html:div>
+
+      <checkbox
+        id="lmstudio-pref-allow-remote"
+        preference="extensions.zotero.lmstudio-zotero.security.allowRemoteServers"
+      >Allow remote LLM servers (requires strict validation)</checkbox>
+
+      <html:div class="lmstudio-hint" style="margin-left: 24px; margin-bottom: 10px; color: #666;">
+        Allow connections to non-localhost URLs. Only enable if using remote LLM services.
+      </html:div>
 
       <hbox align="center" style="margin-top: 10px;">
         <html:label
-          for="llmstudio-pref-server-port"
-          data-l10n-id="llmstudio-pref-server-port"
-          style="min-width: 80px;"
-        ></html:label>
+          for="lmstudio-pref-trusted-hosts"
+          style="min-width: 120px;"
+        >Trusted Hosts:</html:label>
         <html:input
-          type="number"
-          id="llmstudio-pref-server-port"
-          preference="extensions.zotero.llmstudio-zotero.server.port"
-          min="1024"
-          max="65535"
-          style="max-width: 100px;"
+          type="text"
+          id="lmstudio-pref-trusted-hosts"
+          preference="extensions.zotero.lmstudio-zotero.security.trustedHosts"
+          placeholder="example.com, api.example.com"
+          style="flex: 1; max-width: 400px;"
         ></html:input>
       </hbox>
 
-      <html:div class="llmstudio-hint" data-l10n-id="llmstudio-pref-server-hint" style="margin-top: 8px;"></html:div>
+      <html:div class="lmstudio-hint" style="margin-left: 120px; margin-top: 5px;">
+        Comma-separated list of trusted hostnames (only used if remote servers are allowed)
+      </html:div>
     </groupbox>
 
     <!-- LLM Studio Connection -->
     <groupbox style="margin-bottom: 15px;">
-      <label><html:h2 data-l10n-id="llmstudio-pref-connection-title"></html:h2></label>
+      <label><html:h2 data-l10n-id="lmstudio-pref-connection-title"></html:h2></label>
 
       <!-- Provider Preset -->
       <hbox align="center" style="margin-bottom: 10px;">
         <html:label
-          for="llmstudio-pref-provider"
-          data-l10n-id="llmstudio-pref-provider"
+          for="lmstudio-pref-provider"
+          data-l10n-id="lmstudio-pref-provider"
           style="min-width: 100px;"
         ></html:label>
-        <html:select id="llmstudio-pref-provider" style="flex: 1; max-width: 200px;">
-          <html:option value="llmstudio" data-l10n-id="llmstudio-pref-provider-llmstudio"></html:option>
+        <html:select id="lmstudio-pref-provider" style="flex: 1; max-width: 200px;">
+          <html:option value="lmstudio" data-l10n-id="lmstudio-pref-provider-lmstudio"></html:option>
           <html:option value="ollama">Ollama</html:option>
           <html:option value="openai">OpenAI</html:option>
           <html:option value="anthropic">Anthropic</html:option>
-          <html:option value="custom" data-l10n-id="llmstudio-pref-provider-custom"></html:option>
+          <html:option value="custom" data-l10n-id="lmstudio-pref-provider-custom"></html:option>
         </html:select>
+      </hbox>
+
+      <!-- API Version Selector -->
+      <hbox align="center" style="margin-bottom: 10px;">
+        <html:label for="lmstudio-pref-api-version" style="min-width: 100px;">API Version:</html:label>
+        <html:select
+          id="lmstudio-pref-api-version"
+          preference="extensions.zotero.lmstudio-zotero.lmstudio.apiVersion"
+          style="flex: 1; max-width: 200px;"
+        >
+          <html:option value="openai">OpenAI Compatible (/v1/*)</html:option>
+          <html:option value="lmstudio-v1">LM Studio v1 (/api/v1/*)</html:option>
+          <html:option value="anthropic">Anthropic (/v1/messages)</html:option>
+          <html:option value="custom">Custom Endpoint</html:option>
+        </html:select>
+      </hbox>
+
+      <!-- Custom Endpoint (shown when custom is selected) -->
+      <hbox id="lmstudio-custom-endpoint-row" align="center" style="margin-bottom: 10px; display: none;">
+        <html:label for="lmstudio-pref-custom-endpoint" style="min-width: 100px;">Custom Path:</html:label>
+        <html:input
+          type="text"
+          id="lmstudio-pref-custom-endpoint"
+          preference="extensions.zotero.lmstudio-zotero.lmstudio.customEndpoint"
+          placeholder="/custom/chat"
+          style="flex: 1; max-width: 300px;"
+        ></html:input>
       </hbox>
 
       <!-- URL -->
       <hbox align="center" style="margin-bottom: 10px;">
         <html:label
-          for="llmstudio-pref-llmstudio-url"
-          data-l10n-id="llmstudio-pref-llmstudio-url"
+          for="lmstudio-pref-lmstudio-url"
+          data-l10n-id="lmstudio-pref-lmstudio-url"
           style="min-width: 100px;"
         ></html:label>
         <html:input
           type="text"
-          id="llmstudio-pref-llmstudio-url"
-          preference="extensions.zotero.llmstudio-zotero.llmstudio.url"
+          id="lmstudio-pref-lmstudio-url"
+          preference="extensions.zotero.lmstudio-zotero.lmstudio.url"
           placeholder="http://localhost:1234"
           style="flex: 1; max-width: 300px;"
         ></html:input>
@@ -101,51 +231,111 @@
       <!-- Model -->
       <hbox align="center" style="margin-bottom: 10px;">
         <html:label
-          for="llmstudio-pref-llmstudio-model"
-          data-l10n-id="llmstudio-pref-llmstudio-model"
+          for="lmstudio-pref-lmstudio-model"
+          data-l10n-id="lmstudio-pref-lmstudio-model"
           style="min-width: 100px;"
         ></html:label>
         <html:input
           type="text"
-          id="llmstudio-pref-llmstudio-model"
-          preference="extensions.zotero.llmstudio-zotero.llmstudio.model"
+          id="lmstudio-pref-lmstudio-model"
+          preference="extensions.zotero.lmstudio-zotero.lmstudio.model"
           placeholder="Leave empty for default"
           style="flex: 1; max-width: 300px;"
         ></html:input>
       </hbox>
 
+      <!-- Context Length -->
+      <hbox align="center" style="margin-bottom: 10px;">
+        <html:label for="lmstudio-pref-context-length" style="min-width: 100px;">Context Length:</html:label>
+        <html:input
+          type="number"
+          id="lmstudio-pref-context-length"
+          preference="extensions.zotero.lmstudio-zotero.lmstudio.contextLength"
+          min="0"
+          max="128000"
+          step="512"
+          style="max-width: 120px;"
+        ></html:input>
+        <html:span style="margin-left: 5px; color: #666;">(0 = auto)</html:span>
+      </hbox>
+
       <!-- Test Connection -->
       <hbox style="margin-top: 10px;">
         <button
-          id="llmstudio-test-connection-button"
-          data-l10n-id="llmstudio-pref-test-connection"
+          id="lmstudio-test-connection-button"
+          data-l10n-id="lmstudio-pref-test-connection"
         ></button>
         <html:span id="connection-test-result" style="line-height: 28px; margin-left: 10px;"></html:span>
       </hbox>
     </groupbox>
 
-    <!-- Feature Settings -->
-    <groupbox style="margin-bottom: 15px;">
-      <label><html:h2 data-l10n-id="llmstudio-pref-features-title"></html:h2></label>
+    <!-- LM Studio v1 API Features -->
+    <groupbox id="lmstudio-v1-features" style="margin-bottom: 15px;">
+      <label><html:h2>LM Studio v1 Features</html:h2></label>
+
+      <html:div class="lmstudio-hint" style="margin-bottom: 10px; color: #666;">
+        These features are only available when using the LM Studio v1 API. Enable the API version above to use them.
+      </html:div>
 
       <checkbox
-        id="llmstudio-pref-auto-summarize"
-        preference="extensions.zotero.llmstudio-zotero.features.autoSummarize"
-        data-l10n-id="llmstudio-pref-auto-summarize"
+        id="lmstudio-pref-stateful-chats"
+        preference="extensions.zotero.lmstudio-zotero.lmstudio.useStatefulChats"
+      >Enable stateful chats (maintains conversation context)</checkbox>
+
+      <html:div class="lmstudio-hint" style="margin-left: 24px; margin-top: 5px; margin-bottom: 10px; color: #666;">
+        Stateful chats allow continuing conversations across multiple requests.
+      </html:div>
+
+      <checkbox
+        id="lmstudio-pref-enable-mcp"
+        preference="extensions.zotero.lmstudio-zotero.lmstudio.enableMCP"
+      >Enable MCP (Model Context Protocol) support</checkbox>
+
+      <html:div class="lmstudio-hint" style="margin-left: 24px; margin-top: 5px; margin-bottom: 10px; color: #666;">
+        Allows the model to use MCP tools and integrations configured in LM Studio.
+      </html:div>
+
+      <checkbox
+        id="lmstudio-pref-stream-model-loading"
+        preference="extensions.zotero.lmstudio-zotero.lmstudio.streamModelLoading"
+      >Stream model loading events</checkbox>
+
+      <html:div class="lmstudio-hint" style="margin-left: 24px; margin-top: 5px; margin-bottom: 10px; color: #666;">
+        Receive streaming events when the model is being loaded into memory.
+      </html:div>
+
+      <checkbox
+        id="lmstudio-pref-stream-prompt-processing"
+        preference="extensions.zotero.lmstudio-zotero.lmstudio.streamPromptProcessing"
+      >Stream prompt processing events</checkbox>
+
+      <html:div class="lmstudio-hint" style="margin-left: 24px; margin-top: 5px; margin-bottom: 10px; color: #666;">
+        Receive streaming events during prompt processing phase.
+      </html:div>
+    </groupbox>
+
+    <!-- Feature Settings -->
+    <groupbox style="margin-bottom: 15px;">
+      <label><html:h2 data-l10n-id="lmstudio-pref-features-title"></html:h2></label>
+
+      <checkbox
+        id="lmstudio-pref-auto-summarize"
+        preference="extensions.zotero.lmstudio-zotero.features.autoSummarize"
+        data-l10n-id="lmstudio-pref-auto-summarize"
       ></checkbox>
 
-      <html:div class="llmstudio-hint" data-l10n-id="llmstudio-pref-auto-summarize-hint" style="margin-left: 24px; margin-bottom: 10px;"></html:div>
+      <html:div class="lmstudio-hint" data-l10n-id="lmstudio-pref-auto-summarize-hint" style="margin-left: 24px; margin-bottom: 10px;"></html:div>
 
       <hbox align="center" style="margin-top: 10px;">
         <html:label
-          for="llmstudio-pref-max-tokens"
-          data-l10n-id="llmstudio-pref-max-tokens"
+          for="lmstudio-pref-max-tokens"
+          data-l10n-id="lmstudio-pref-max-tokens"
           style="min-width: 120px;"
         ></html:label>
         <html:input
           type="number"
-          id="llmstudio-pref-max-tokens"
-          preference="extensions.zotero.llmstudio-zotero.features.maxTokens"
+          id="lmstudio-pref-max-tokens"
+          preference="extensions.zotero.lmstudio-zotero.features.maxTokens"
           min="256"
           max="32768"
           step="256"
@@ -156,21 +346,21 @@
 
     <!-- API Endpoints Info -->
     <groupbox style="margin-bottom: 15px;">
-      <label><html:h2 data-l10n-id="llmstudio-pref-api-title"></html:h2></label>
-      <html:p data-l10n-id="llmstudio-pref-api-description" style="margin-bottom: 10px; color: #666;"></html:p>
+      <label><html:h2 data-l10n-id="lmstudio-pref-api-title"></html:h2></label>
+      <html:p data-l10n-id="lmstudio-pref-api-description" style="margin-bottom: 10px; color: #666;"></html:p>
 
       <vbox style="font-family: monospace; font-size: 11px; background: #f5f5f5; padding: 8px; border-radius: 4px;">
-        <html:div>GET  http://localhost:23121/llmstudio/status</html:div>
-        <html:div>GET  http://localhost:23121/llmstudio/items</html:div>
-        <html:div>POST http://localhost:23121/llmstudio/items</html:div>
-        <html:div>POST http://localhost:23121/llmstudio/search</html:div>
+        <html:div>GET  http://localhost:23119/lmstudio/status</html:div>
+        <html:div>GET  http://localhost:23119/lmstudio/models</html:div>
+        <html:div>POST http://localhost:23119/lmstudio/chat</html:div>
+        <html:div>POST http://localhost:23119/lmstudio/search</html:div>
       </vbox>
     </groupbox>
 
     <!-- Help -->
     <vbox>
       <html:label
-        data-l10n-id="llmstudio-pref-help"
+        data-l10n-id="lmstudio-pref-help"
         data-l10n-args='{"version": "0.1.0"}'
         style="color: #666;"
       ></html:label>
